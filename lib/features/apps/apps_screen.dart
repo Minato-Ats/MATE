@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/local/preferences_service.dart';
+import '../../data/models/strict_mode_guard.dart';
+import '../../platform/watcher_coordinator.dart';
 import '../../state/app_state.dart';
 import 'widgets/guarded_app_tile.dart';
 import 'widgets/wait_time_sheet.dart';
@@ -14,22 +16,82 @@ class AppsScreen extends StatefulWidget {
 }
 
 class _AppsScreenState extends State<AppsScreen> {
-  Future<void> _openWaitTimeSheet(String packageName, String appName) async {
+  Future<void> _openSettingsSheet(String packageName, String appName) async {
     final preferences = context.read<PreferencesService>();
+    final coordinator = context.read<WatcherCoordinator>();
     final current = preferences.waitSecondsFor(packageName);
-    final selected = await WaitTimeSheet.show(context, appName: appName, currentSeconds: current);
-    if (selected != null) {
-      await preferences.setWaitSecondsFor(packageName, selected);
-      if (mounted) setState(() {});
+    final selected = await WaitTimeSheet.show(
+      context,
+      appName: appName,
+      currentSeconds: current,
+      currentQuestion: preferences.questionFor(packageName),
+      alwaysGuard: preferences.alwaysGuardPackages.contains(packageName),
+      strictModeEnabled: preferences.strictModeEnabled,
+    );
+    if (selected == null) return;
+
+    await preferences.setWaitSecondsFor(packageName, selected.waitSeconds);
+    await preferences.setQuestionFor(packageName, selected.question);
+
+    final alwaysGuard = preferences.alwaysGuardPackages;
+    if (selected.alwaysGuard) {
+      alwaysGuard.add(packageName);
+    } else {
+      alwaysGuard.remove(packageName);
+    }
+    await preferences.setAlwaysGuardPackages(alwaysGuard);
+    await coordinator.evaluate();
+
+    if (mounted) setState(() {});
+  }
+
+  Future<bool> _confirmUnguard(String appName) async {
+    final preferences = context.read<PreferencesService>();
+    if (!StrictModeGuard.requiresConfirmationToUnguard(
+      strictModeEnabled: preferences.strictModeEnabled,
+    )) {
+      return true;
+    }
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('見守りを外しますか？'),
+            content: Text('Strict Modeが有効です。$appNameを見守り対象から外します。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('キャンセル'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('外す'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _setGuarded(String packageName, String appName, bool value) async {
+    final appState = context.read<AppState>();
+    final preferences = context.read<PreferencesService>();
+    final coordinator = context.read<WatcherCoordinator>();
+
+    if (!value && !await _confirmUnguard(appName)) return;
+
+    await appState.setAppGuarded(packageName, value);
+
+    if (!value) {
+      final alwaysGuard = preferences.alwaysGuardPackages..remove(packageName);
+      await preferences.setAlwaysGuardPackages(alwaysGuard);
+      await coordinator.evaluate();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    // PreferencesService isn't a ChangeNotifier (plain synchronous storage);
-    // this screen re-reads it on every rebuild and rebuilds itself manually
-    // via setState after a wait-time change.
     final preferences = context.read<PreferencesService>();
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -63,7 +125,7 @@ class _AppsScreenState extends State<AppsScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                       children: [
                         Text(
-                          '見守ってほしいアプリをONにしてください。行をタップすると待機時間を変更できます',
+                          '見守ってほしいアプリをONにしてください。行をタップすると待機時間や質問文を変更できます',
                           style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 12),
@@ -71,8 +133,9 @@ class _AppsScreenState extends State<AppsScreen> {
                           GuardedAppTile(
                             app: app,
                             waitSeconds: preferences.waitSecondsFor(app.packageName),
-                            onChanged: (value) => appState.setAppGuarded(app.packageName, value),
-                            onTap: () => _openWaitTimeSheet(app.packageName, app.appName),
+                            alwaysGuard: preferences.alwaysGuardPackages.contains(app.packageName),
+                            onChanged: (value) => _setGuarded(app.packageName, app.appName, value),
+                            onTap: () => _openSettingsSheet(app.packageName, app.appName),
                           ),
                           const SizedBox(height: 10),
                         ],

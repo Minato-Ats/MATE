@@ -2,20 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../../../data/models/guarded_app.dart';
 
-/// One row in the target-app list: icon, name, an optional wait-time
-/// subtitle, and an on/off toggle. Tapping the row (outside the switch)
-/// opens wait-time settings for that app.
+/// One row in the target-app list: icon, name, current per-app guard settings,
+/// and an on/off toggle. Tapping the row opens the Phase 4 settings sheet.
 class GuardedAppTile extends StatelessWidget {
   const GuardedAppTile({
     super.key,
     required this.app,
     required this.waitSeconds,
+    required this.alwaysGuard,
     required this.onChanged,
     required this.onTap,
   });
 
   final GuardedApp app;
   final int waitSeconds;
+  final bool alwaysGuard;
   final ValueChanged<bool> onChanged;
   final VoidCallback onTap;
 
@@ -26,6 +27,11 @@ class GuardedAppTile extends StatelessWidget {
 
     return Card(
       clipBehavior: Clip.antiAlias,
+      color: colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -53,14 +59,32 @@ class GuardedAppTile extends StatelessWidget {
                     if (app.isGuarded) ...[
                       const SizedBox(height: 2),
                       Text(
-                        '$waitSeconds秒待機',
+                        alwaysGuard ? '$waitSeconds秒待機・常に見守る' : '$waitSeconds秒待機',
                         style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ],
                 ),
               ),
-              Switch(value: app.isGuarded, onChanged: onChanged),
+              // Keep the track neutral even when ON. The thumb alone carries the
+              // accent color, so this reads as a normal switch rather than a fully
+              // filled selection pill.
+              Switch(
+                value: app.isGuarded,
+                onChanged: onChanged,
+                thumbColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return colorScheme.primary;
+                  }
+                  return colorScheme.outline;
+                }),
+                trackColor: WidgetStateProperty.resolveWith((states) {
+                  return colorScheme.surfaceContainerHighest;
+                }),
+                trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+                  return colorScheme.outlineVariant;
+                }),
+              ),
             ],
           ),
         ),

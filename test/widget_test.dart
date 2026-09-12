@@ -24,6 +24,7 @@ Future<Widget> buildTestApp() async {
   return MultiProvider(
     providers: [
       Provider<PreferencesService>.value(value: preferences),
+      Provider<WatcherCoordinator>.value(value: watcherCoordinator),
       ChangeNotifierProvider(create: (_) => ThemeController(preferences)),
       ChangeNotifierProvider(
         create: (_) => AppState(
@@ -69,7 +70,7 @@ void main() {
     expect(find.byType(Switch), findsWidgets);
   });
 
-  testWidgets('Tapping a guarded app row opens the wait-time sheet', (tester) async {
+  testWidgets('Tapping a guarded app row opens per-app settings', (tester) async {
     await tester.pumpWidget(await buildTestApp());
     await tester.pumpAndSettle();
 
@@ -79,8 +80,10 @@ void main() {
     await tester.tap(find.text('Instagram'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('を開く前の待機時間'), findsOneWidget);
-    expect(find.text('8秒'), findsOneWidget);
+    expect(find.textContaining('の見守り設定'), findsOneWidget);
+    expect(find.text('待機時間'), findsOneWidget);
+    expect(find.text('ひとこと質問'), findsOneWidget);
+    expect(find.text('保存'), findsOneWidget);
   });
 
   testWidgets('Navigating to Stats screen shows weekly chart', (tester) async {
@@ -100,18 +103,29 @@ void main() {
     await tester.tap(find.text('設定'));
     await tester.pumpAndSettle();
 
+    // Phase 4 added guard-rule cards above the Display section, so the
+    // theme controls are now below the initial test viewport. Scroll them
+    // into view rather than assuming a fixed layout height.
+    await tester.scrollUntilVisible(
+      find.text('外観'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('外観'), findsOneWidget);
     await tester.tap(find.text('ダーク'));
     await tester.pumpAndSettle();
   });
 
-  testWidgets('Settings screen shows usage access permission status', (tester) async {
+  testWidgets('Settings screen shows Phase 4 guard controls', (tester) async {
     await tester.pumpWidget(await buildTestApp());
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('設定'));
     await tester.pumpAndSettle();
 
+    expect(find.text('時間帯・曜日を指定'), findsOneWidget);
+    expect(find.text('一時休止'), findsOneWidget);
+    expect(find.text('Strict Mode'), findsOneWidget);
     expect(find.text('使用状況へのアクセス'), findsOneWidget);
     expect(find.text('検知テスト（Phase 1 検証用）'), findsOneWidget);
   });

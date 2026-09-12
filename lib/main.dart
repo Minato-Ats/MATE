@@ -37,6 +37,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         Provider<PreferencesService>.value(value: preferences),
+        Provider<WatcherCoordinator>.value(value: watcherCoordinator),
         ChangeNotifierProvider(create: (_) => ThemeController(preferences)),
         ChangeNotifierProvider(
           create: (_) => AppState(
