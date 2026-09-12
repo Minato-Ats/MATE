@@ -1,0 +1,70 @@
+import 'package:flutter/material.dart';
+
+import '../../../data/models/guarded_app.dart';
+
+/// One row in the target-app list: icon, name, an optional wait-time
+/// subtitle, and an on/off toggle. Tapping the row (outside the switch)
+/// opens wait-time settings for that app.
+class GuardedAppTile extends StatelessWidget {
+  const GuardedAppTile({
+    super.key,
+    required this.app,
+    required this.waitSeconds,
+    required this.onChanged,
+    required this.onTap,
+  });
+
+  final GuardedApp app;
+  final int waitSeconds;
+  final ValueChanged<bool> onChanged;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final iconBytes = app.iconBytes;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: colorScheme.secondaryContainer,
+                backgroundImage: iconBytes != null ? MemoryImage(iconBytes) : null,
+                child: iconBytes == null
+                    ? Icon(Icons.apps_rounded, color: colorScheme.onSecondaryContainer, size: 20)
+                    : null,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      app.appName,
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                    if (app.isGuarded) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        '$waitSeconds秒待機',
+                        style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Switch(value: app.isGuarded, onChanged: onChanged),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

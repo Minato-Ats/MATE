@@ -1,0 +1,101 @@
+うん、今後毎回迷わないように**「開始」と「終了」だけ固定手順**にしよう👌
+MATE開発は基本これでOK。
+
+## 開始するとき
+
+1. **Android Emulatorを起動**
+   PowerShellで：
+
+```powershell
+flutter emulators --launch Pixel_9
+```
+
+少し待ってPixel 9が起動したら、
+
+```powershell
+flutter devices
+```
+
+で `emulator-5554` が出てればOK。
+
+2. **MATEフォルダへ移動**
+
+```powershell
+cd C:\dev\MATE
+```
+
+3. **Claude Codeを起動**
+
+```powershell
+claude
+```
+
+これで前回の続きから開発開始。
+
+もし実際にアプリを動かしたいだけなら、Claude Codeじゃなくて、
+
+```powershell
+flutter run -d emulator-5554
+```
+
+でもOK。
+
+---
+
+## 終了するとき
+
+### Claude Code
+
+Claude Code側で作業が終わってるなら、そのまま終了してOK。
+途中なら、まずClaudeに、
+
+> 「今日はここで終了します。現在の進捗と次回再開時に何から始めればいいか簡潔にまとめてください。」
+
+って送ってから閉じるのがおすすめ。
+
+### Flutterアプリを実行中なら
+
+`flutter run` が動いてる画面で、
+
+```text
+q
+```
+
+→ Enter
+
+これでアプリ実行終了。
+
+### Emulator
+
+Pixel 9のウィンドウを普通に閉じてOK。
+
+---
+
+## 次回再開するときの最短版
+
+毎回これだけ覚えればいい👇
+
+```powershell
+flutter emulators --launch Pixel_9
+cd C:\dev\MATE
+claude
+```
+
+これで再開。
+
+終了時は、
+
+```text
+q
+```
+
+※ `flutter run` 実行中のときだけ。
+
+あとはClaude Codeを閉じて、Emulatorを閉じるだけ。
+
+### 1個だけ大事
+
+**毎回 `flutter clean` や `flutter pub get` はしなくていい。**
+エラーが出た時や依存関係を変更した時だけでOK。
+
+今後は「MATE開始手順」「MATE終了手順」って聞かれたら、この固定手順で案内できるよ。
