@@ -33,25 +33,35 @@ class ScheduleRule {
   final int startMinutes;
   final int endMinutes;
 
-  /// ISO weekday numbers (1 = Monday .. 7 = Sunday) this rule applies on.
-  /// Defaults to all seven — turning the schedule on only narrows the
-  /// *time of day* until the user also deliberately narrows the days, so
-  /// enabling it never silently stops guarding on, say, a Tuesday.
+  /// ISO weekday numbers (1 = Monday .. 7 = Sunday) for the day on which
+  /// the guarding window STARTS. For an overnight rule such as Mon 22:00-
+  /// 02:00, the Tuesday 00:00-02:00 tail still belongs to Monday's window.
   final Set<int> weekdays;
 
   /// Whether [dateTime] falls inside this rule's active window. Handles an
-  /// overnight window (e.g. 22:00-02:00) by wrapping past midnight.
+  /// overnight window (e.g. 22:00-02:00) by associating the after-midnight
+  /// tail with the previous weekday, which matches how users read a rule
+  /// like "Monday 22:00-02:00".
   bool isActiveAt(DateTime dateTime) {
     if (!enabled) return true;
-    if (!weekdays.contains(dateTime.weekday)) return false;
 
     final minutesOfDay = dateTime.hour * 60 + dateTime.minute;
     if (startMinutes <= endMinutes) {
-      return minutesOfDay >= startMinutes && minutesOfDay < endMinutes;
+      return weekdays.contains(dateTime.weekday) &&
+          minutesOfDay >= startMinutes &&
+          minutesOfDay < endMinutes;
     }
-    // Overnight window: active from start through midnight, then midnight
-    // through end.
-    return minutesOfDay >= startMinutes || minutesOfDay < endMinutes;
+
+    if (minutesOfDay >= startMinutes) {
+      return weekdays.contains(dateTime.weekday);
+    }
+
+    if (minutesOfDay < endMinutes) {
+      final previousWeekday = dateTime.weekday == DateTime.monday ? DateTime.sunday : dateTime.weekday - 1;
+      return weekdays.contains(previousWeekday);
+    }
+
+    return false;
   }
 
   ScheduleRule copyWith({
