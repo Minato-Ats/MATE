@@ -80,6 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ) ??
           false;
       if (!confirmed) return;
+      if (!mounted) return;
     }
 
     final choice = await showModalBottomSheet<String>(
