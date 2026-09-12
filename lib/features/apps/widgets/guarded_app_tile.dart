@@ -2,20 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../../../data/models/guarded_app.dart';
 
-/// One row in the target-app list: icon, name, an optional wait-time
-/// subtitle, and an on/off toggle. Tapping the row (outside the switch)
-/// opens wait-time settings for that app.
+/// One row in the target-app list: icon, name, current per-app guard settings,
+/// and an on/off toggle. Tapping the row opens the Phase 4 settings sheet.
 class GuardedAppTile extends StatelessWidget {
   const GuardedAppTile({
     super.key,
     required this.app,
     required this.waitSeconds,
+    required this.alwaysGuard,
     required this.onChanged,
     required this.onTap,
   });
 
   final GuardedApp app;
   final int waitSeconds;
+  final bool alwaysGuard;
   final ValueChanged<bool> onChanged;
   final VoidCallback onTap;
 
@@ -53,7 +54,7 @@ class GuardedAppTile extends StatelessWidget {
                     if (app.isGuarded) ...[
                       const SizedBox(height: 2),
                       Text(
-                        '$waitSeconds秒待機',
+                        alwaysGuard ? '$waitSeconds秒待機・常に見守る' : '$waitSeconds秒待機',
                         style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                       ),
                     ],
