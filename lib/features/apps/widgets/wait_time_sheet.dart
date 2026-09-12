@@ -84,8 +84,12 @@ class _WaitTimeSheetState extends State<WaitTimeSheet> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    // Earlier Phase 2 builds offered a few different values (8/15/60).
+    // Keep an already-saved legacy value visible instead of silently
+    // snapping it to the new, intentionally shorter Phase 4 list.
+    final options = {...PreferencesService.waitSecondsOptions, widget.currentSeconds}.toList()..sort();
     final allowedSeconds = StrictModeGuard.selectableWaitSeconds(
-      PreferencesService.waitSecondsOptions,
+      options,
       widget.currentSeconds,
       strictModeEnabled: widget.strictModeEnabled,
     ).toSet();
@@ -114,7 +118,7 @@ class _WaitTimeSheetState extends State<WaitTimeSheet> {
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  for (final seconds in PreferencesService.waitSecondsOptions)
+                  for (final seconds in options)
                     ChoiceChip(
                       label: Text('$seconds秒'),
                       selected: seconds == _selectedSeconds,
