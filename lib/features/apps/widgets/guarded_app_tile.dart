@@ -27,8 +27,6 @@ class GuardedAppTile extends StatelessWidget {
 
     return Card(
       clipBehavior: Clip.antiAlias,
-      // The switch already communicates ON/OFF, so keep the whole row neutral
-      // instead of tinting the entire card and making it look like a selected chip.
       color: colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -68,7 +66,25 @@ class GuardedAppTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Switch(value: app.isGuarded, onChanged: onChanged),
+              // Keep the track neutral even when ON. The thumb alone carries the
+              // accent color, so this reads as a normal switch rather than a fully
+              // filled selection pill.
+              Switch(
+                value: app.isGuarded,
+                onChanged: onChanged,
+                thumbColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return colorScheme.primary;
+                  }
+                  return colorScheme.outline;
+                }),
+                trackColor: WidgetStateProperty.resolveWith((states) {
+                  return colorScheme.surfaceContainerHighest;
+                }),
+                trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+                  return colorScheme.outlineVariant;
+                }),
+              ),
             ],
           ),
         ),
