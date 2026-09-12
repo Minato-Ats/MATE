@@ -29,6 +29,7 @@ class _InterventionScreenState extends State<InterventionScreen> {
 
   int _totalWaitSeconds = PreferencesService.defaultWaitSeconds;
   int _remainingSeconds = PreferencesService.defaultWaitSeconds;
+  String _question = PreferencesService.defaultQuestion;
   Timer? _timer;
   bool _waitCompleted = false;
 
@@ -59,6 +60,7 @@ class _InterventionScreenState extends State<InterventionScreen> {
     }
 
     final waitSeconds = _preferences!.waitSecondsFor(args.packageName);
+    final question = _preferences!.questionFor(args.packageName);
     await _preferences!.appendEvent(InterventionEvent(
       type: InterventionEventType.detected,
       packageName: args.packageName,
@@ -71,6 +73,7 @@ class _InterventionScreenState extends State<InterventionScreen> {
       _loading = false;
       _totalWaitSeconds = waitSeconds;
       _remainingSeconds = waitSeconds;
+      _question = question;
       _waitCompleted = waitSeconds <= 0;
       _purposeController.clear();
     });
@@ -178,9 +181,9 @@ class _InterventionScreenState extends State<InterventionScreen> {
               TextField(
                 controller: _purposeController,
                 textAlign: TextAlign.center,
-                decoration: const InputDecoration(
-                  hintText: '何しに開く？（任意）',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  hintText: '$_question（任意）',
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 32),
