@@ -103,6 +103,14 @@ void main() {
     await tester.tap(find.text('設定'));
     await tester.pumpAndSettle();
 
+    // Phase 4 added guard-rule cards above the Display section, so the
+    // theme controls are now below the initial test viewport. Scroll them
+    // into view rather than assuming a fixed layout height.
+    await tester.scrollUntilVisible(
+      find.text('外観'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('外観'), findsOneWidget);
     await tester.tap(find.text('ダーク'));
     await tester.pumpAndSettle();
