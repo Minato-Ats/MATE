@@ -27,6 +27,13 @@ class GuardedAppTile extends StatelessWidget {
 
     return Card(
       clipBehavior: Clip.antiAlias,
+      // The switch already communicates ON/OFF, so keep the whole row neutral
+      // instead of tinting the entire card and making it look like a selected chip.
+      color: colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
