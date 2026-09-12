@@ -18,16 +18,21 @@ object ScheduleCheck {
 
         val now = Calendar.getInstance()
         val isoWeekday = toIsoWeekday(now.get(Calendar.DAY_OF_WEEK))
-        if (!MonitorState.scheduleWeekdays.contains(isoWeekday)) return false
-
         val minutesOfDay = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
         val start = MonitorState.scheduleStartMinutes
         val end = MonitorState.scheduleEndMinutes
+
         return if (start <= end) {
-            minutesOfDay in start until end
+            MonitorState.scheduleWeekdays.contains(isoWeekday) &&
+                minutesOfDay in start until end
         } else {
-            // Overnight window (e.g. 22:00-02:00).
-            minutesOfDay >= start || minutesOfDay < end
+            // Overnight window: weekdays identify the day on which the window
+            // starts. Therefore Tue 01:00 belongs to Monday's 22:00-02:00 rule.
+            when {
+                minutesOfDay >= start -> MonitorState.scheduleWeekdays.contains(isoWeekday)
+                minutesOfDay < end -> MonitorState.scheduleWeekdays.contains(previousIsoWeekday(isoWeekday))
+                else -> false
+            }
         }
     }
 
@@ -35,4 +40,6 @@ object ScheduleCheck {
     private fun toIsoWeekday(calendarDayOfWeek: Int): Int {
         return if (calendarDayOfWeek == Calendar.SUNDAY) 7 else calendarDayOfWeek - 1
     }
+
+    private fun previousIsoWeekday(weekday: Int): Int = if (weekday == 1) 7 else weekday - 1
 }
