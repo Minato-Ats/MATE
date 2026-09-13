@@ -58,23 +58,29 @@ class MainActivity : FlutterActivity() {
                         @Suppress("UNCHECKED_CAST")
                         val packages = (call.arguments as? List<String>)?.toSet() ?: emptySet()
                         MonitorState.guardedPackages = packages
+                        NativeStateStore.saveGuardedPackages(this, packages)
                         result.success(null)
                     }
                     "syncScheduleRule" -> {
                         @Suppress("UNCHECKED_CAST")
                         val args = call.arguments as? Map<String, Any?> ?: emptyMap()
-                        MonitorState.scheduleEnabled = args["enabled"] as? Boolean ?: false
-                        MonitorState.scheduleStartMinutes = (args["startMinutes"] as? Int) ?: 0
-                        MonitorState.scheduleEndMinutes = (args["endMinutes"] as? Int) ?: 0
+                        val enabled = args["enabled"] as? Boolean ?: false
+                        val startMinutes = (args["startMinutes"] as? Int) ?: 0
+                        val endMinutes = (args["endMinutes"] as? Int) ?: 0
                         @Suppress("UNCHECKED_CAST")
                         val weekdays = (args["weekdays"] as? List<Int>)?.toSet() ?: emptySet()
+                        MonitorState.scheduleEnabled = enabled
+                        MonitorState.scheduleStartMinutes = startMinutes
+                        MonitorState.scheduleEndMinutes = endMinutes
                         MonitorState.scheduleWeekdays = weekdays
+                        NativeStateStore.saveSchedule(this, enabled, startMinutes, endMinutes, weekdays)
                         result.success(null)
                     }
                     "syncAlwaysGuardPackages" -> {
                         @Suppress("UNCHECKED_CAST")
                         val packages = (call.arguments as? List<String>)?.toSet() ?: emptySet()
                         MonitorState.alwaysGuardPackages = packages
+                        NativeStateStore.saveAlwaysGuardPackages(this, packages)
                         result.success(null)
                     }
                     "syncPausedUntil" -> {
@@ -89,6 +95,10 @@ class MainActivity : FlutterActivity() {
                     }
                     "stopWatcherService" -> {
                         stopService(Intent(this, ForegroundWatcherService::class.java))
+                        // Nothing left to guard (or a required permission was revoked) — clear
+                        // the boot-restore cache too, so a later reboot doesn't try to resume
+                        // watching packages the user already unguarded.
+                        NativeStateStore.saveGuardedPackages(this, emptySet())
                         result.success(null)
                     }
                     else -> result.notImplemented()

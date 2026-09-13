@@ -22,8 +22,12 @@
          intervention screen, which satisfies Android's "has a visible window"
          exemption. See ForegroundWatcherService.showTransitionCover(). -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Lets the watcher resume itself after a device reboot (see
+         BootCompletedReceiver) instead of silently staying off until the
+         user happens to reopen the app. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application
-        android:label="mate"
+        android:label="MATE"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -71,6 +75,15 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Detects when a user-chosen app is opened so MATE can show a brief pause-and-reflect screen before it opens. No data leaves the device." />
         </service>
+        <!-- Restarts the watcher after a reboot using the last-synced state cached in
+             NativeStateStore — see BootCompletedReceiver's doc comment. -->
+        <receiver
+            android:name=".BootCompletedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
