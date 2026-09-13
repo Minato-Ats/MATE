@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/intervention_event.dart';
 import '../models/schedule_rule.dart';
+import '../models/serious_mode_escalation.dart';
 
 /// Thin wrapper around [SharedPreferences].
 ///
@@ -41,6 +42,16 @@ class PreferencesService {
   static const _strictModeKey = 'strict_mode_enabled';
   static const _onboardingCompletedKey = 'onboarding_completed';
   static const _soundEffectsEnabledKey = 'sound_effects_enabled';
+  static const _goalKey = 'user_goal';
+  static const _seriousModeEnabledKey = 'serious_mode_enabled';
+  static const _seriousModeEscalationKey = 'serious_mode_escalation';
+  static const _seriousModeMaxWaitReachedKey = 'serious_mode_max_wait_seconds_reached';
+  static const _seriousModeMessageHistoryKey = 'serious_mode_message_history';
+
+  /// How many recently-shown serious-mode message ids to remember, so the
+  /// anti-repeat picker can avoid reshowing any of them (Phase 6.6 spec: a
+  /// ~20-entry recent-usage history).
+  static const _seriousModeMessageHistoryLimit = 20;
 
   /// Presented as the only wait-time choices in the UI (Phase 4: fewer,
   /// clearer options rather than a long list).
@@ -164,6 +175,90 @@ class PreferencesService {
   bool get soundEffectsEnabled => _prefs.getBool(_soundEffectsEnabledKey) ?? true;
 
   Future<void> setSoundEffectsEnabled(bool value) => _prefs.setBool(_soundEffectsEnabledKey, value);
+
+  /// The user's one current self-defined goal (free text — 受験合格、資格取得、
+  /// 転職、筋トレ、etc; Phase 6.6), or `null` if they've never set one. MATE
+  /// works fully without this being set; it's only ever used to personalize
+  /// serious-mode copy.
+  String? get goal {
+    final value = _prefs.getString(_goalKey)?.trim();
+    return (value == null || value.isEmpty) ? null : value;
+  }
+
+  Future<void> setGoal(String? value) async {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      await _prefs.remove(_goalKey);
+    } else {
+      await _prefs.setString(_goalKey, trimmed);
+    }
+  }
+
+  /// 本気モード (Serious Mode, Phase 6.6) — a distinct, much stricter
+  /// intervention flow (reason input → 今必要？ → escalating "それでも開く"
+  /// wait) than ルール固定モード, which only guards *settings* from being
+  /// weakened. Defaults to `false`: this is an opt-in feature only for users
+  /// who deliberately turn it on, never forced on an existing/new user.
+  bool get seriousModeEnabled => _prefs.getBool(_seriousModeEnabledKey) ?? false;
+
+  Future<void> setSeriousModeEnabled(bool value) => _prefs.setBool(_seriousModeEnabledKey, value);
+
+  /// Loads the shared (cross-app) cumulative "それでも開く" escalation state.
+  /// Uses [_asyncPrefs] like [appendEvent]/[loadEventLog] — for the same
+  /// reason: this is read and written from the intervention screen's fresh
+  /// isolate every time a guarded app is opened, and must always see the
+  /// truly-latest value written by whichever isolate handled the previous
+  /// guarded-app trigger, not a stale per-isolate cache.
+  Future<SeriousModeEscalation> loadSeriousModeEscalation() async {
+    final raw = await _asyncPrefs.getString(_seriousModeEscalationKey);
+    if (raw == null) return SeriousModeEscalation.initial;
+    return SeriousModeEscalation.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  Future<void> _saveSeriousModeEscalation(SeriousModeEscalation state) =>
+      _asyncPrefs.setString(_seriousModeEscalationKey, jsonEncode(state.toJson()));
+
+  /// What "それでも開く" would cost right now, across any guarded app.
+  Future<int> effectiveSeriousModeWaitSeconds(DateTime now) async =>
+      (await loadSeriousModeEscalation()).effectiveWaitSeconds(now);
+
+  /// Records the user explicitly choosing "それでも開く" at [now], escalating
+  /// the shared wait for every guarded app's *next* trigger. Must only be
+  /// called from that one choice — never from detection alone, and never
+  /// from "やめとく" (Phase 6.6: only this explicit choice may increase the
+  /// penalty).
+  Future<void> recordSeriousModeOpenAnyway(DateTime now) async {
+    final current = await loadSeriousModeEscalation();
+    final next = current.afterOpenAnyway(now);
+    await _saveSeriousModeEscalation(next);
+    final maxReached = await _asyncPrefs.getInt(_seriousModeMaxWaitReachedKey) ?? 0;
+    if (next.pendingSeconds > maxReached) {
+      await _asyncPrefs.setInt(_seriousModeMaxWaitReachedKey, next.pendingSeconds);
+    }
+  }
+
+  /// The highest escalated wait ever reached (for future stats display —
+  /// Phase 6.6 doesn't require surfacing this in the UI yet).
+  Future<int> get seriousModeMaxWaitSecondsReached async =>
+      await _asyncPrefs.getInt(_seriousModeMaxWaitReachedKey) ?? 0;
+
+  /// Ids of the most recently shown serious-mode copy templates (newest
+  /// last), capped at [_seriousModeMessageHistoryLimit] — used to avoid
+  /// reshowing the same line too soon. Cross-isolate-safe for the same
+  /// reason as [loadSeriousModeEscalation].
+  Future<List<String>> loadSeriousModeMessageHistory() async {
+    final raw = await _asyncPrefs.getString(_seriousModeMessageHistoryKey);
+    if (raw == null) return [];
+    return (jsonDecode(raw) as List<dynamic>).cast<String>();
+  }
+
+  Future<void> pushSeriousModeMessageId(String id) async {
+    final history = await loadSeriousModeMessageHistory()..add(id);
+    final trimmed = history.length > _seriousModeMessageHistoryLimit
+        ? history.sublist(history.length - _seriousModeMessageHistoryLimit)
+        : history;
+    await _asyncPrefs.setString(_seriousModeMessageHistoryKey, jsonEncode(trimmed));
+  }
 
   /// Appends one intervention event, trimming the oldest entries beyond
   /// [_maxEventLogEntries] so this can't grow without bound. The Stats

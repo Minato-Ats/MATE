@@ -147,6 +147,39 @@ class MateCopy {
   static const settingsPausedUntilToday = '今日いっぱい休止中';
   static String settingsPausedUntilTime(String time) => '$timeまで休止中';
 
+  // 本気モード (Serious Mode, Phase 6.6) — a separate, much stricter
+  // intervention flow from ルール固定モード (which only guards settings).
+  // Off by default; only ever enabled by a user who chooses to.
+  static const settingsSeriousModeTitle = '本気モード';
+  static const settingsSeriousModeSubtitle =
+      '誘惑にかなり負けやすい人向け。開く理由を確認し、それでも誘惑アプリを開くほど待ち時間が長くなります。';
+
+  // Goal registration — optional, prompted (not required) when Serious Mode
+  // is turned on. Kept deliberately unpreachy: one plain question, one line
+  // saying what it's used for.
+  static const goalPromptTitle = '今かなえたいことは？';
+  static const goalPromptBody = 'MATEが誘惑から戻すときに使います。';
+  static const goalPromptHint = '例：宅建に合格する、5kg痩せる';
+  static const goalPromptSkip = 'あとで設定する';
+  static const goalSettingsTitle = '目標';
+  static const goalSettingsSubtitleEmpty = '未設定';
+  static const goalSettingsEditHint = '今かなえたいことを入力';
+
+  // Serious-mode intervention flow — one question per screen (Phase 6.6
+  // requirement 10: the user should always know what to do next at a
+  // glance). Reuses the same visual language as the normal InterventionScreen.
+  static String seriousModeStepTitle(String appName) => '$appNameを開く？';
+  static const seriousModeReasonQuestion = '何のために開く？';
+  static const seriousModeReasonHint = '例：暇つぶし、返信、仕事の確認';
+  static const seriousModeReasonRequiredHint = '一言だけでいいので入力してね';
+  static const seriousModeReasonContinue = 'つぎへ';
+  static const seriousModeNeedQuestion = 'それ、今必要？';
+  static const seriousModeNeedYes = '必要';
+  static const seriousModeNeedNo = '必要ない';
+  static const seriousModeGiveUp = 'やめとく';
+  static const seriousModeOpenAnyway = 'それでも開く';
+  static const seriousModeEscalatedWaitingSubtitle = '待ってる間、さっきの自分の言葉を思い出そう';
+
   // Stats
   static const statsNoRecordsYet = 'まだ記録がありません。対象アプリを開くとここに実績が表示されます';
   static const statsLast7Days = '直近7日間';

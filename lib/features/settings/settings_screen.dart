@@ -177,6 +177,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _setSeriousMode(bool enabled) async {
+    MateFeedback.tap(_preferences);
+    await _preferences.setSeriousModeEnabled(enabled);
+    // Naturally prompt for a goal when turning this on — never mandatory,
+    // and never asked again just because the toggle is flipped again while
+    // a goal is already set.
+    if (enabled && _preferences.goal == null && mounted) {
+      await _promptForGoal();
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _promptForGoal() async {
+    final controller = TextEditingController(text: _preferences.goal ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(MateCopy.goalPromptTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(MateCopy.goalPromptBody),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(hintText: MateCopy.goalPromptHint, border: OutlineInputBorder()),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(MateCopy.goalPromptSkip),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text(MateCopy.save),
+          ),
+        ],
+      ),
+    );
+    if (result != null && result.trim().isNotEmpty) {
+      await _preferences.setGoal(result);
+    }
+  }
+
   Future<void> _toggleSoundEffects(bool value) async {
     // Play with the *current* (pre-toggle) setting so turning it off still
     // gives one last confirming tap, matching every other switch's feel.
@@ -219,6 +267,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final pausedUntil = _preferences.pausedUntil;
     final strictModeEnabled = _preferences.strictModeEnabled;
     final soundEffectsEnabled = _preferences.soundEffectsEnabled;
+    final seriousModeEnabled = _preferences.seriousModeEnabled;
+    final goal = _preferences.goal;
     const weekdayLabels = ['月', '火', '水', '木', '金', '土', '日'];
 
     return Scaffold(
@@ -381,6 +431,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: const Text(MateCopy.settingsStrictModeTitle),
                     value: strictModeEnabled,
                     onChanged: _setStrictMode,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // 本気モード (Phase 6.6): a separate, much stricter feature from
+          // ルール固定モード above — that one only guards *settings* from
+          // being weakened, this one changes the intervention itself. Kept
+          // as its own card/tile so the two are never visually conflated.
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                title: const Text(MateCopy.settingsSeriousModeTitle, style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(seriousModeEnabled ? 'ON' : 'OFF'),
+                childrenPadding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      MateCopy.settingsSeriousModeSubtitle,
+                      style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  MateSwitchListTile(
+                    title: const Text(MateCopy.settingsSeriousModeTitle),
+                    value: seriousModeEnabled,
+                    onChanged: _setSeriousMode,
+                  ),
+                  Divider(height: 1, color: colorScheme.outlineVariant),
+                  ListTile(
+                    title: const Text(MateCopy.goalSettingsTitle),
+                    subtitle: Text(goal ?? MateCopy.goalSettingsSubtitleEmpty),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () async {
+                      await _promptForGoal();
+                      if (mounted) setState(() {});
+                    },
                   ),
                 ],
               ),

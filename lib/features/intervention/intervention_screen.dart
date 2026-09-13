@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/copy/mate_copy.dart';
 import '../../core/feedback.dart';
-import '../../core/motion/mate_motion.dart';
 import '../../data/local/preferences_service.dart';
 import '../../data/models/intervention_event.dart';
 import '../../platform/intervention_bridge.dart';
+import 'serious_mode/serious_mode_flow.dart';
+import 'widgets/wait_countdown_ring.dart';
 
 /// The Phase 2 core experience: shown full-screen, instantly, on top of
 /// whatever the user was doing the moment a guarded app is detected.
@@ -38,6 +39,14 @@ class _InterventionScreenState extends State<InterventionScreen> {
   Timer? _timer;
   bool _waitCompleted = false;
 
+  // Phase 6.6: 本気モード is a distinct, much stricter flow (reason input →
+  // 今必要？ → escalating "それでも開く" wait) than this screen's normal
+  // path. When enabled, `build()` delegates entirely to [SeriousModeFlow]
+  // instead of the countdown-only UI below — the normal path (this whole
+  // class otherwise) stays byte-for-byte unchanged for everyone who hasn't
+  // opted in.
+  bool _seriousMode = false;
+
   final _purposeController = TextEditingController();
 
   @override
@@ -66,6 +75,7 @@ class _InterventionScreenState extends State<InterventionScreen> {
 
     final waitSeconds = _preferences!.waitSecondsFor(args.packageName);
     final question = _preferences!.questionFor(args.packageName);
+    final seriousMode = _preferences!.seriousModeEnabled;
     await _preferences!.appendEvent(InterventionEvent(
       type: InterventionEventType.detected,
       packageName: args.packageName,
@@ -76,12 +86,15 @@ class _InterventionScreenState extends State<InterventionScreen> {
     setState(() {
       _args = args;
       _loading = false;
+      _seriousMode = seriousMode;
       _totalWaitSeconds = waitSeconds;
       _remainingSeconds = waitSeconds;
       _question = question;
       _waitCompleted = waitSeconds <= 0;
       _purposeController.clear();
     });
+
+    if (seriousMode) return; // SeriousModeFlow drives its own timing entirely.
 
     if (!_waitCompleted) {
       _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
@@ -157,7 +170,16 @@ class _InterventionScreenState extends State<InterventionScreen> {
     }
 
     final args = _args!;
-    final progress = _totalWaitSeconds == 0 ? 1.0 : 1 - (_remainingSeconds / _totalWaitSeconds);
+
+    if (_seriousMode) {
+      return SeriousModeFlow(
+        args: args,
+        preferences: _preferences!,
+        normalWaitSeconds: _totalWaitSeconds,
+        onGiveUp: _giveUp,
+        onOpen: _open,
+      );
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -195,52 +217,10 @@ class _InterventionScreenState extends State<InterventionScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              Semantics(
-                label: _waitCompleted ? MateCopy.interventionReadySemantic : MateCopy.interventionWaitingSemantic,
-                liveRegion: true,
-                child: ExcludeSemantics(
-                  child: SizedBox(
-                    width: 96,
-                    height: 96,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0, end: progress.clamp(0.0, 1.0)),
-                          duration: MateMotion.settle,
-                          curve: MateMotion.curve,
-                          builder: (context, value, _) => SizedBox(
-                            width: 96,
-                            height: 96,
-                            child: CircularProgressIndicator(
-                              value: value,
-                              strokeWidth: 6,
-                              backgroundColor: colorScheme.surfaceContainerHigh,
-                              valueColor: AlwaysStoppedAnimation(colorScheme.primary),
-                            ),
-                          ),
-                        ),
-                        AnimatedSwitcher(
-                          duration: MateMotion.release,
-                          switchInCurve: MateMotion.curve,
-                          transitionBuilder: (child, animation) => ScaleTransition(
-                            scale: animation,
-                            child: FadeTransition(opacity: animation, child: child),
-                          ),
-                          child: Text(
-                            _waitCompleted ? '✓' : '$_remainingSeconds',
-                            key: ValueKey(_waitCompleted),
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                              color: colorScheme.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+              WaitCountdownRing(
+                remainingSeconds: _remainingSeconds,
+                totalSeconds: _totalWaitSeconds,
+                waitCompleted: _waitCompleted,
               ),
               const Spacer(),
               Row(

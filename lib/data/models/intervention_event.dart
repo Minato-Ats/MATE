@@ -19,6 +19,27 @@ class InterventionEventType {
 
   /// The user chose not to proceed.
   static const gaveUp = 'gave_up';
+
+  // 本気モード (Serious Mode, Phase 6.6) events — a distinct, stricter
+  // intervention flow. Recorded for future stats use only; existing
+  // aggregation (`StatsRepository._bucketByDay`) safely ignores unrecognized
+  // types, so no other stats code needs to change for these to be logged.
+
+  /// The serious-mode reason step ("何のために開く？") was shown.
+  static const seriousModeStarted = 'serious_mode_started';
+
+  /// The user answered "今必要" (YES) to "それ、今必要？".
+  static const seriousModeYes = 'serious_mode_yes';
+
+  /// The user answered "今必要ではない" (NO) to "それ、今必要？".
+  static const seriousModeNo = 'serious_mode_no';
+
+  /// After a NO answer, the user chose "やめとく" — no penalty increase.
+  static const seriousModeGaveUp = 'serious_mode_gave_up';
+
+  /// After a NO answer, the user chose "それでも開く" — escalates the shared
+  /// cumulative wait for every guarded app's next trigger.
+  static const seriousModeOpenAnyway = 'serious_mode_open_anyway';
 }
 
 @immutable
