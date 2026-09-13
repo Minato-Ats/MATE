@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/copy/mate_copy.dart';
 import '../../../core/theme/app_colors.dart';
 
 /// Small streak badge shown on Home. Streaks add a light game feel without
@@ -25,12 +26,12 @@ class StreakCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$streakDays日連続で継続中',
+                    '$streakDays${MateCopy.homeStreakSuffix}',
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'この調子でいきましょう',
+                    MateCopy.homeStreakSubtitle,
                     style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                   ),
                 ],

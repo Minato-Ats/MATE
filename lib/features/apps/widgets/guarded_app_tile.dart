@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/copy/mate_copy.dart';
+import '../../../core/widgets/mate_switch.dart';
 import '../../../data/models/guarded_app.dart';
 
 /// One row in the target-app list: icon, name, current per-app guard settings,
@@ -59,31 +61,20 @@ class GuardedAppTile extends StatelessWidget {
                     if (app.isGuarded) ...[
                       const SizedBox(height: 2),
                       Text(
-                        alwaysGuard ? '$waitSeconds秒待機・常に見守る' : '$waitSeconds秒待機',
+                        alwaysGuard
+                            ? MateCopy.appsWaitAndAlwaysGuardSuffix(waitSeconds)
+                            : MateCopy.appsWaitSuffix(waitSeconds),
                         style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ],
                 ),
               ),
-              // Keep the track neutral even when ON. The thumb alone carries the
-              // accent color, so this reads as a normal switch rather than a fully
-              // filled selection pill.
-              Switch(
-                value: app.isGuarded,
-                onChanged: onChanged,
-                thumbColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return colorScheme.primary;
-                  }
-                  return colorScheme.outline;
-                }),
-                trackColor: WidgetStateProperty.resolveWith((states) {
-                  return colorScheme.surfaceContainerHighest;
-                }),
-                trackOutlineColor: WidgetStateProperty.resolveWith((states) {
-                  return colorScheme.outlineVariant;
-                }),
+              MergeSemantics(
+                child: Semantics(
+                  label: MateCopy.appsSwitchSemanticLabel(app.appName, app.isGuarded),
+                  child: MateSwitch(value: app.isGuarded, onChanged: onChanged),
+                ),
               ),
             ],
           ),

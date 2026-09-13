@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/copy/mate_copy.dart';
+import '../../core/feedback.dart';
+import '../../core/widgets/mate_switch.dart';
 import '../../data/local/preferences_service.dart';
 import '../../data/models/schedule_rule.dart';
 import '../../data/models/strict_mode_guard.dart';
@@ -11,6 +14,7 @@ import '../../state/overlay_access_controller.dart';
 import '../../state/theme_controller.dart';
 import '../../state/usage_access_controller.dart';
 import '../detection_test/detection_test_screen.dart';
+import '../onboarding/onboarding_screen.dart';
 
 // Permission status here is refreshed by MainShell's lifecycle observer
 // (this screen stays mounted inside an IndexedStack, so it doesn't need its
@@ -32,6 +36,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _toggleSchedule(bool value) async {
+    MateFeedback.tap(_preferences);
+    await _saveSchedule(_preferences.scheduleRule.copyWith(enabled: value));
+  }
+
   Future<void> _pickTime({required bool start}) async {
     final rule = _preferences.scheduleRule;
     final minutes = start ? rule.startMinutes : rule.endMinutes;
@@ -47,6 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _toggleWeekday(int weekday, bool selected) async {
+    MateFeedback.select(_preferences);
     final rule = _preferences.scheduleRule;
     final days = Set<int>.of(rule.weekdays);
     if (selected) {
@@ -64,16 +74,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final confirmed = await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('一時休止しますか？'),
-              content: const Text('Strict Modeが有効です。一時休止中は対象アプリを開いても介入しません。'),
+              title: const Text(MateCopy.settingsPauseConfirmTitle),
+              content: const Text(MateCopy.settingsPauseConfirmBody),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('キャンセル'),
+                  child: const Text(MateCopy.cancel),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text('続ける'),
+                  child: const Text(MateCopy.settingsContinue),
                 ),
               ],
             ),
@@ -90,13 +100,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const ListTile(
-              title: Text('MATEを一時休止', style: TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text('終了すると自動で見守りを再開します'),
+              title: Text(MateCopy.settingsPauseSheetTitle, style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(MateCopy.settingsPauseSheetSubtitle),
             ),
-            ListTile(title: const Text('15分'), onTap: () => Navigator.pop(context, '15')),
-            ListTile(title: const Text('30分'), onTap: () => Navigator.pop(context, '30')),
-            ListTile(title: const Text('1時間'), onTap: () => Navigator.pop(context, '60')),
-            ListTile(title: const Text('今日いっぱい'), onTap: () => Navigator.pop(context, 'today')),
+            ListTile(
+              title: const Text(MateCopy.settingsPause15),
+              onTap: () {
+                MateFeedback.select(_preferences);
+                Navigator.pop(context, '15');
+              },
+            ),
+            ListTile(
+              title: const Text(MateCopy.settingsPause30),
+              onTap: () {
+                MateFeedback.select(_preferences);
+                Navigator.pop(context, '30');
+              },
+            ),
+            ListTile(
+              title: const Text(MateCopy.settingsPause60),
+              onTap: () {
+                MateFeedback.select(_preferences);
+                Navigator.pop(context, '60');
+              },
+            ),
+            ListTile(
+              title: const Text(MateCopy.settingsPauseToday),
+              onTap: () {
+                MateFeedback.select(_preferences);
+                Navigator.pop(context, 'today');
+              },
+            ),
           ],
         ),
       ),
@@ -117,12 +151,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _resumeNow() async {
+    MateFeedback.tap(_preferences);
     await _preferences.setPausedUntil(null);
     await _coordinator.evaluate();
     if (mounted) setState(() {});
   }
 
   Future<void> _setStrictMode(bool enabled) async {
+    MateFeedback.tap(_preferences);
     if (enabled) {
       await _preferences.setStrictModeEnabled(true);
       if (mounted) setState(() {});
@@ -140,6 +176,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _toggleSoundEffects(bool value) async {
+    // Play with the *current* (pre-toggle) setting so turning it off still
+    // gives one last confirming tap, matching every other switch's feel.
+    MateFeedback.tap(_preferences);
+    await _preferences.setSoundEffectsEnabled(value);
+    if (mounted) setState(() {});
+  }
+
+  void _replayOnboarding() {
+    MateFeedback.tap(_preferences);
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const OnboardingScreen(replay: true)),
+    );
+  }
+
   String _formatMinutes(int value) {
     final hour = (value ~/ 60).toString().padLeft(2, '0');
     final minute = (value % 60).toString().padLeft(2, '0');
@@ -151,8 +202,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final isTomorrowMidnight = until.hour == 0 &&
         until.minute == 0 &&
         until.difference(DateTime(now.year, now.month, now.day + 1)).inMinutes.abs() < 2;
-    if (isTomorrowMidnight) return '今日いっぱい休止中';
-    return '${until.hour.toString().padLeft(2, '0')}:${until.minute.toString().padLeft(2, '0')}まで休止中';
+    if (isTomorrowMidnight) return MateCopy.settingsPausedUntilToday;
+    return MateCopy.settingsPausedUntilTime(
+      '${until.hour.toString().padLeft(2, '0')}:${until.minute.toString().padLeft(2, '0')}',
+    );
   }
 
   @override
@@ -164,26 +217,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final schedule = _preferences.scheduleRule;
     final pausedUntil = _preferences.pausedUntil;
     final strictModeEnabled = _preferences.strictModeEnabled;
+    final soundEffectsEnabled = _preferences.soundEffectsEnabled;
     const weekdayLabels = ['月', '火', '水', '木', '金', '土', '日'];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('設定')),
+      appBar: AppBar(title: const Text(MateCopy.navSettings)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
-          _SectionLabel('見守りルール'),
+          _SectionLabel(MateCopy.settingsRulesSection),
           Card(
             child: Column(
               children: [
-                SwitchListTile.adaptive(
-                  title: const Text('時間帯・曜日を指定'),
+                MateSwitchListTile(
+                  title: const Text(MateCopy.settingsScheduleTitle),
                   subtitle: Text(
                     schedule.enabled
                         ? '${_formatMinutes(schedule.startMinutes)}〜${_formatMinutes(schedule.endMinutes)}'
-                        : 'OFFなら24時間いつでも見守ります',
+                        : MateCopy.settingsScheduleSubtitleOff,
                   ),
                   value: schedule.enabled,
-                  onChanged: (value) => _saveSchedule(schedule.copyWith(enabled: value)),
+                  onChanged: _toggleSchedule,
                 ),
                 if (schedule.enabled) ...[
                   Divider(height: 1, color: colorScheme.outlineVariant),
@@ -226,7 +280,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '終了が開始より早い場合は、日付をまたぐ時間帯として扱います',
+                          MateCopy.settingsScheduleOvernightHint,
                           style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
                         ),
                       ],
@@ -241,39 +295,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: pausedUntil == null
                 ? ListTile(
                     leading: const Icon(Icons.pause_circle_outline_rounded),
-                    title: const Text('一時休止'),
-                    subtitle: const Text('15分・30分・1時間・今日いっぱい'),
+                    title: const Text(MateCopy.settingsPauseTitle),
+                    subtitle: const Text(MateCopy.settingsPauseSubtitle),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: _choosePause,
                   )
                 : ListTile(
                     leading: const Icon(Icons.pause_circle_filled_rounded),
                     title: Text(_pauseLabel(pausedUntil)),
-                    subtitle: const Text('時間になると自動で見守りを再開します'),
-                    trailing: TextButton(onPressed: _resumeNow, child: const Text('今すぐ再開')),
+                    subtitle: const Text(MateCopy.settingsPauseAutoResume),
+                    trailing: TextButton(onPressed: _resumeNow, child: const Text(MateCopy.settingsResumeNow)),
                   ),
           ),
           const SizedBox(height: 12),
           Card(
-            child: SwitchListTile.adaptive(
-              title: const Text('Strict Mode'),
-              subtitle: const Text('勢いで見守り設定を弱めにくくします。解除不能にはなりません'),
+            child: MateSwitchListTile(
+              title: const Text(MateCopy.settingsStrictModeTitle),
+              subtitle: const Text(MateCopy.settingsStrictModeSubtitle),
               value: strictModeEnabled,
               onChanged: _setStrictMode,
             ),
           ),
           const SizedBox(height: 24),
-          _SectionLabel('権限'),
+          _SectionLabel(MateCopy.settingsPermissionsSection),
           Card(
             child: Column(
               children: [
                 _InfoRow(
                   icon: hasUsageAccess ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
-                  title: '使用状況へのアクセス',
+                  title: MateCopy.settingsUsageAccessTitle,
                   subtitle: hasUsageAccess
-                      ? '対象アプリの起動を検知できます'
-                      : '見守り対象アプリの起動検知に必要です（未許可）',
-                  trailing: hasUsageAccess ? null : '設定',
+                      ? MateCopy.settingsUsageAccessGranted
+                      : MateCopy.settingsUsageAccessMissing,
+                  trailing: hasUsageAccess ? null : MateCopy.settingsGoToSettingsAction,
                   onTrailingTap: hasUsageAccess
                       ? null
                       : () => context.read<UsageAccessController>().openSettings(),
@@ -281,11 +335,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Divider(height: 1, color: colorScheme.outlineVariant),
                 _InfoRow(
                   icon: hasOverlayAccess ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
-                  title: '他のアプリの上に表示',
-                  subtitle: hasOverlayAccess
-                      ? '一呼吸おく画面をすぐに表示できます'
-                      : '見守り対象アプリを開いたときの画面表示に必要です（未許可）',
-                  trailing: hasOverlayAccess ? null : '設定',
+                  title: MateCopy.settingsOverlayTitle,
+                  subtitle: hasOverlayAccess ? MateCopy.settingsOverlayGranted : MateCopy.settingsOverlayMissing,
+                  trailing: hasOverlayAccess ? null : MateCopy.settingsGoToSettingsAction,
                   onTrailingTap: hasOverlayAccess
                       ? null
                       : () => context.read<OverlayAccessController>().openSettings(),
@@ -293,9 +345,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Divider(height: 1, color: colorScheme.outlineVariant),
                 _InfoRow(
                   icon: Icons.bug_report_outlined,
-                  title: '検知テスト（Phase 1 検証用）',
-                  subtitle: '前面アプリの検知が動作しているか確認します',
-                  trailing: '開く',
+                  title: MateCopy.settingsDetectionTestTitle,
+                  subtitle: MateCopy.settingsDetectionTestSubtitle,
+                  trailing: MateCopy.settingsOpenAction,
                   onTrailingTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const DetectionTestScreen()),
                   ),
@@ -304,39 +356,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          _SectionLabel('表示'),
+          _SectionLabel(MateCopy.settingsDisplaySection),
           Card(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('外観', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  const Text(MateCopy.settingsAppearance, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
                   SegmentedButton<ThemeMode>(
                     segments: const [
-                      ButtonSegment(value: ThemeMode.system, label: Text('自動'), icon: Icon(Icons.brightness_auto_rounded)),
-                      ButtonSegment(value: ThemeMode.light, label: Text('ライト'), icon: Icon(Icons.light_mode_rounded)),
-                      ButtonSegment(value: ThemeMode.dark, label: Text('ダーク'), icon: Icon(Icons.dark_mode_rounded)),
+                      ButtonSegment(
+                        value: ThemeMode.system,
+                        label: Text(MateCopy.settingsThemeSystem),
+                        icon: Icon(Icons.brightness_auto_rounded),
+                      ),
+                      ButtonSegment(
+                        value: ThemeMode.light,
+                        label: Text(MateCopy.settingsThemeLight),
+                        icon: Icon(Icons.light_mode_rounded),
+                      ),
+                      ButtonSegment(
+                        value: ThemeMode.dark,
+                        label: Text(MateCopy.settingsThemeDark),
+                        icon: Icon(Icons.dark_mode_rounded),
+                      ),
                     ],
                     selected: {themeController.mode},
-                    onSelectionChanged: (selection) => themeController.setMode(selection.first),
+                    onSelectionChanged: (selection) {
+                      MateFeedback.select(_preferences);
+                      themeController.setMode(selection.first);
+                    },
                   ),
                 ],
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          Card(
+            child: MateSwitchListTile(
+              title: const Text('操作音（SE）'),
+              subtitle: const Text('ボタン操作時に短い効果音を鳴らします'),
+              value: soundEffectsEnabled,
+              onChanged: _toggleSoundEffects,
+            ),
+          ),
           const SizedBox(height: 24),
-          _SectionLabel('このアプリについて'),
+          _SectionLabel(MateCopy.settingsAboutSection),
           Card(
             child: Column(
               children: [
-                const _InfoRow(icon: Icons.info_outline_rounded, title: 'バージョン', trailing: '0.5.0 (Phase 4)'),
+                const _InfoRow(
+                  icon: Icons.info_outline_rounded,
+                  title: MateCopy.settingsVersion,
+                  trailing: MateCopy.settingsVersionValue,
+                ),
                 Divider(height: 1, color: colorScheme.outlineVariant),
                 const _InfoRow(
                   icon: Icons.lock_outline_rounded,
-                  title: 'プライバシー',
-                  subtitle: 'データは端末内にのみ保存され、外部に送信されません',
+                  title: MateCopy.settingsPrivacyTitle,
+                  subtitle: MateCopy.settingsPrivacyBody,
+                ),
+                Divider(height: 1, color: colorScheme.outlineVariant),
+                _InfoRow(
+                  icon: Icons.favorite_outline_rounded,
+                  title: MateCopy.settingsReplayOnboarding,
+                  subtitle: MateCopy.settingsReplayOnboardingSubtitle,
+                  trailing: MateCopy.settingsOpenAction,
+                  onTrailingTap: _replayOnboarding,
                 ),
               ],
             ),
@@ -382,20 +470,20 @@ class _StrictDisableDialogState extends State<_StrictDisableDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Strict Modeを解除'),
+      title: const Text(MateCopy.settingsStrictDisableTitle),
       content: Text(
         _secondsLeft > 0
-            ? '勢いで解除しないため、あと$_secondsLeft秒だけ待ってください。'
-            : '解除できます。必要になったらいつでも再びONにできます。',
+            ? MateCopy.settingsStrictDisableWaiting(_secondsLeft)
+            : MateCopy.settingsStrictDisableReady,
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('やめる'),
+          child: const Text(MateCopy.settingsStrictDisableCancel),
         ),
         FilledButton(
           onPressed: _secondsLeft == 0 ? () => Navigator.of(context).pop(true) : null,
-          child: const Text('解除する'),
+          child: const Text(MateCopy.settingsStrictDisableConfirm),
         ),
       ],
     );

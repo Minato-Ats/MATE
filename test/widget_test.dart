@@ -16,8 +16,12 @@ import 'package:mate/state/overlay_access_controller.dart';
 import 'package:mate/state/theme_controller.dart';
 import 'package:mate/state/usage_access_controller.dart';
 
-Future<Widget> buildTestApp() async {
-  SharedPreferences.setMockInitialValues({});
+Future<Widget> buildTestApp({bool seedOnboardingCompleted = true}) async {
+  // Onboarding is gated on a fresh install (see lib/app.dart); most of these
+  // tests exercise MainShell directly, so seed it as already completed by
+  // default. Onboarding itself is covered in test/onboarding_test.dart,
+  // which passes `seedOnboardingCompleted: false`.
+  SharedPreferences.setMockInitialValues({'onboarding_completed': seedOnboardingCompleted});
   final preferences = await PreferencesService.create();
   final watcherCoordinator = WatcherCoordinator(bridge: InstalledAppsBridge(), preferences: preferences);
 

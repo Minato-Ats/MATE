@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/copy/mate_copy.dart';
+import '../../core/feedback.dart';
+import '../../core/motion/mate_motion.dart';
 import '../../data/local/preferences_service.dart';
 import '../../data/models/intervention_event.dart';
 import '../../platform/intervention_bridge.dart';
@@ -12,7 +15,9 @@ import '../../platform/intervention_bridge.dart';
 /// Deliberately not styled as a "blocked" screen — no red, no lock icon, no
 /// warning language. The idea is one deliberate pause, not a punishment:
 /// giving up is always one tap away, and opening just asks for a few
-/// seconds of "did I actually mean to do this?" first.
+/// seconds of "did I actually mean to do this?" first. This is also the one
+/// screen every user hits repeatedly, so its copy carries MATE's "companion
+/// pausing with you" voice more than anywhere else in the app.
 class InterventionScreen extends StatefulWidget {
   const InterventionScreen({super.key});
 
@@ -92,6 +97,7 @@ class _InterventionScreenState extends State<InterventionScreen> {
         _remainingSeconds = 0;
         _waitCompleted = true;
       });
+      if (_preferences != null) MateFeedback.waitComplete(_preferences!);
       unawaited(_logWaitCompleted());
     } else {
       setState(() => _remainingSeconds -= 1);
@@ -109,6 +115,7 @@ class _InterventionScreenState extends State<InterventionScreen> {
   }
 
   Future<void> _giveUp() async {
+    if (_preferences != null) MateFeedback.giveUp(_preferences!);
     final args = _args;
     if (args != null && _preferences != null) {
       await _preferences!.appendEvent(InterventionEvent(
@@ -124,6 +131,7 @@ class _InterventionScreenState extends State<InterventionScreen> {
     final args = _args;
     if (args == null) return;
     if (_preferences != null) {
+      MateFeedback.tap(_preferences!);
       await _preferences!.appendEvent(InterventionEvent(
         type: InterventionEventType.opened,
         packageName: args.packageName,
@@ -168,13 +176,13 @@ class _InterventionScreenState extends State<InterventionScreen> {
               ),
               const SizedBox(height: 20),
               Text(
-                '${args.appName}を開く？',
+                MateCopy.interventionTitle(args.appName),
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 8),
               Text(
-                _waitCompleted ? 'それでも開く？' : 'ちょっとだけ待とう。',
+                _waitCompleted ? MateCopy.interventionReadySubtitle : MateCopy.interventionWaitingSubtitle,
                 style: TextStyle(fontSize: 14, color: colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 28),
@@ -182,36 +190,56 @@ class _InterventionScreenState extends State<InterventionScreen> {
                 controller: _purposeController,
                 textAlign: TextAlign.center,
                 decoration: InputDecoration(
-                  hintText: '$_question（任意）',
+                  hintText: MateCopy.interventionHint(_question),
                   border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 32),
-              SizedBox(
-                width: 96,
-                height: 96,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 96,
-                      height: 96,
-                      child: CircularProgressIndicator(
-                        value: progress.clamp(0.0, 1.0),
-                        strokeWidth: 6,
-                        backgroundColor: colorScheme.surfaceContainerHigh,
-                        valueColor: AlwaysStoppedAnimation(colorScheme.primary),
-                      ),
+              Semantics(
+                label: _waitCompleted ? MateCopy.interventionReadySemantic : MateCopy.interventionWaitingSemantic,
+                liveRegion: true,
+                child: ExcludeSemantics(
+                  child: SizedBox(
+                    width: 96,
+                    height: 96,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: progress.clamp(0.0, 1.0)),
+                          duration: MateMotion.settle,
+                          curve: MateMotion.curve,
+                          builder: (context, value, _) => SizedBox(
+                            width: 96,
+                            height: 96,
+                            child: CircularProgressIndicator(
+                              value: value,
+                              strokeWidth: 6,
+                              backgroundColor: colorScheme.surfaceContainerHigh,
+                              valueColor: AlwaysStoppedAnimation(colorScheme.primary),
+                            ),
+                          ),
+                        ),
+                        AnimatedSwitcher(
+                          duration: MateMotion.release,
+                          switchInCurve: MateMotion.curve,
+                          transitionBuilder: (child, animation) => ScaleTransition(
+                            scale: animation,
+                            child: FadeTransition(opacity: animation, child: child),
+                          ),
+                          child: Text(
+                            _waitCompleted ? '✓' : '$_remainingSeconds',
+                            key: ValueKey(_waitCompleted),
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      _waitCompleted ? '✓' : '$_remainingSeconds',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
               const Spacer(),
@@ -221,7 +249,7 @@ class _InterventionScreenState extends State<InterventionScreen> {
                     child: OutlinedButton(
                       onPressed: _giveUp,
                       style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                      child: const Text('やめとく'),
+                      child: const Text(MateCopy.interventionGiveUp),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -229,7 +257,7 @@ class _InterventionScreenState extends State<InterventionScreen> {
                     child: FilledButton(
                       onPressed: _waitCompleted ? _open : null,
                       style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                      child: const Text('開く'),
+                      child: const Text(MateCopy.interventionOpen),
                     ),
                   ),
                 ],

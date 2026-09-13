@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/copy/mate_copy.dart';
+import '../../core/feedback.dart';
+import '../../data/local/preferences_service.dart';
 import '../../state/app_state.dart';
 import '../../state/overlay_access_controller.dart';
 import '../../state/usage_access_controller.dart';
@@ -54,6 +57,12 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  void _selectTab(int index) {
+    if (index == _index) return;
+    MateFeedback.select(context.read<PreferencesService>());
+    setState(() => _index = index);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,27 +71,27 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() => _index = value),
+        onDestinationSelected: _selectTab,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home_rounded),
-            label: 'ホーム',
+            label: MateCopy.navHome,
           ),
           NavigationDestination(
             icon: Icon(Icons.apps_outlined),
             selectedIcon: Icon(Icons.apps_rounded),
-            label: '対象アプリ',
+            label: MateCopy.navApps,
           ),
           NavigationDestination(
             icon: Icon(Icons.bar_chart_outlined),
             selectedIcon: Icon(Icons.bar_chart_rounded),
-            label: '統計',
+            label: MateCopy.navStats,
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings_rounded),
-            label: '設定',
+            label: MateCopy.navSettings,
           ),
         ],
       ),

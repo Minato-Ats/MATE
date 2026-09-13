@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/mate_scroll_behavior.dart';
 import 'intervention_screen.dart';
 
 /// Root widget for the separate Flutter engine that powers the Phase 2
@@ -21,6 +22,7 @@ class InterventionApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
+      scrollBehavior: const MateScrollBehavior(),
       home: const InterventionScreen(),
     );
   }

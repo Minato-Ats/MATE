@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/copy/mate_copy.dart';
+import '../../core/motion/mate_motion.dart';
 import '../../data/models/guarded_app.dart';
 import '../../state/app_state.dart';
 import 'widgets/quick_stats_row.dart';
@@ -16,7 +18,7 @@ class HomeScreen extends StatelessWidget {
     final summary = appState.statsSummary;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('MATE')),
+      appBar: AppBar(title: const Text(MateCopy.appName)),
       body: appState.isLoading || summary == null
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -24,18 +26,62 @@ class HomeScreen extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                 children: [
-                  TodaySummaryCard(today: summary.today),
+                  _StaggeredFadeIn(index: 0, child: TodaySummaryCard(today: summary.today)),
                   const SizedBox(height: 16),
-                  StreakCard(streakDays: summary.currentStreakDays),
+                  _StaggeredFadeIn(index: 1, child: StreakCard(streakDays: summary.currentStreakDays)),
                   const SizedBox(height: 16),
-                  QuickStatsRow(today: summary.today),
+                  _StaggeredFadeIn(index: 2, child: QuickStatsRow(today: summary.today)),
                   const SizedBox(height: 16),
-                  _GuardedAppsPreviewCard(
-                    apps: appState.guardedApps.where((app) => app.isGuarded).toList(),
+                  _StaggeredFadeIn(
+                    index: 3,
+                    child: _GuardedAppsPreviewCard(
+                      apps: appState.guardedApps.where((app) => app.isGuarded).toList(),
+                    ),
                   ),
                 ],
               ),
             ),
+    );
+  }
+}
+
+/// Small entrance grace note for Home's cards: each fades and slides up in
+/// turn rather than all popping in at once. Purely cosmetic — if the delay
+/// never fires because the widget was disposed first, `mounted` guards it,
+/// so there's nothing to clean up.
+class _StaggeredFadeIn extends StatefulWidget {
+  const _StaggeredFadeIn({required this.index, required this.child});
+
+  final int index;
+  final Widget child;
+
+  @override
+  State<_StaggeredFadeIn> createState() => _StaggeredFadeInState();
+}
+
+class _StaggeredFadeInState extends State<_StaggeredFadeIn> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration(milliseconds: 60 * widget.index), () {
+      if (mounted) setState(() => _visible = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: _visible ? 1 : 0,
+      duration: MateMotion.settle,
+      curve: MateMotion.curve,
+      child: AnimatedSlide(
+        offset: _visible ? Offset.zero : const Offset(0, 0.04),
+        duration: MateMotion.settle,
+        curve: MateMotion.curve,
+        child: widget.child,
+      ),
     );
   }
 }
@@ -63,12 +109,14 @@ class _GuardedAppsPreviewCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    apps.isEmpty ? 'まだ対象アプリが設定されていません' : '${apps.length}個のアプリを見守り中',
+                    apps.isEmpty
+                        ? MateCopy.homeNoGuardedApps
+                        : '${apps.length}${MateCopy.homeGuardedAppsCountSuffix}',
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    apps.isEmpty ? '「対象アプリ」からいつでも設定できます' : '対象アプリはいつでも変更できます',
+                    apps.isEmpty ? MateCopy.homeGuardedAppsHintEmpty : MateCopy.homeGuardedAppsHint,
                     style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                   ),
                 ],

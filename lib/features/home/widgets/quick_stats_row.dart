@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/copy/mate_copy.dart';
 import '../../../data/models/daily_stats.dart';
 
 /// Two compact stat tiles: attempts today and today's win rate.
@@ -14,7 +15,7 @@ class QuickStatsRow extends StatelessWidget {
       children: [
         Expanded(
           child: _StatTile(
-            label: '起動を試みた回数',
+            label: MateCopy.homeAttemptsLabel,
             value: '${today.launchAttempts}回',
             icon: Icons.touch_app_rounded,
           ),
@@ -22,7 +23,7 @@ class QuickStatsRow extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: _StatTile(
-            label: '今日の勝率',
+            label: MateCopy.homeWinRateLabel,
             value: '${(today.winRate * 100).round()}%',
             icon: Icons.emoji_events_rounded,
           ),

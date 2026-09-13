@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/copy/mate_copy.dart';
 import '../../state/app_state.dart';
 import 'widgets/weekly_bar_chart.dart';
 
@@ -16,7 +17,7 @@ class StatsScreen extends StatelessWidget {
     final hasAnyActivity = summary != null && summary.last7Days.any((day) => day.launchAttempts > 0);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('統計')),
+      appBar: AppBar(title: const Text(MateCopy.navStats)),
       body: appState.isLoading || summary == null
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -34,7 +35,7 @@ class StatsScreen extends StatelessWidget {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                'まだ記録がありません。対象アプリを開くとここに実績が表示されます',
+                                MateCopy.statsNoRecordsYet,
                                 style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
                               ),
                             ),
@@ -51,12 +52,12 @@ class StatsScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            '直近7日間',
+                            MateCopy.statsLast7Days,
                             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '合計 ${summary.weeklyTemptationsWon}回 誘惑に勝ちました',
+                            MateCopy.statsWeeklyWon(summary.weeklyTemptationsWon),
                             style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                           ),
                           const SizedBox(height: 16),
@@ -71,7 +72,7 @@ class StatsScreen extends StatelessWidget {
                       Expanded(
                         child: _SummaryTile(
                           icon: Icons.local_fire_department_rounded,
-                          label: '現在のストリーク',
+                          label: MateCopy.statsCurrentStreak,
                           value: '${summary.currentStreakDays}日',
                         ),
                       ),
@@ -79,7 +80,7 @@ class StatsScreen extends StatelessWidget {
                       Expanded(
                         child: _SummaryTile(
                           icon: Icons.timer_rounded,
-                          label: '今週のSAVE時間',
+                          label: MateCopy.statsWeeklySave,
                           value: '${summary.weeklyMinutesSaved}分',
                         ),
                       ),
@@ -88,13 +89,13 @@ class StatsScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   _SummaryTile(
                     icon: Icons.savings_rounded,
-                    label: '累計SAVE時間',
+                    label: MateCopy.statsTotalSave,
                     value: '${summary.totalMinutesSavedAllTime}分',
                     fullWidth: true,
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    '直近30日',
+                    MateCopy.statsLast30Days,
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: colorScheme.onSurfaceVariant),
                   ),
                   const SizedBox(height: 10),
@@ -103,7 +104,7 @@ class StatsScreen extends StatelessWidget {
                       Expanded(
                         child: _SummaryTile(
                           icon: Icons.emoji_events_rounded,
-                          label: '誘惑に勝った回数',
+                          label: MateCopy.statsMonthlyWon,
                           value: '${summary.monthlyTemptationsWon}回',
                         ),
                       ),
@@ -111,7 +112,7 @@ class StatsScreen extends StatelessWidget {
                       Expanded(
                         child: _SummaryTile(
                           icon: Icons.savings_outlined,
-                          label: 'SAVE時間',
+                          label: MateCopy.statsMonthlySave,
                           value: '${summary.monthlyMinutesSaved}分',
                         ),
                       ),

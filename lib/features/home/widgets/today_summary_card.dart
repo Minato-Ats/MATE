@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/copy/mate_copy.dart';
+import '../../../core/motion/mate_motion.dart';
 import '../../../data/models/daily_stats.dart';
 
 /// The hero card on Home: today's win count and time saved, framed
@@ -20,7 +22,7 @@ class TodaySummaryCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '今日',
+              MateCopy.homeToday,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -31,20 +33,25 @@ class TodaySummaryCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  '${today.temptationsWon}',
-                  style: TextStyle(
-                    fontSize: 56,
-                    fontWeight: FontWeight.w800,
-                    height: 1,
-                    color: colorScheme.primary,
+                TweenAnimationBuilder<int>(
+                  tween: IntTween(begin: 0, end: today.temptationsWon),
+                  duration: MateMotion.release,
+                  curve: MateMotion.curve,
+                  builder: (context, value, _) => Text(
+                    '$value',
+                    style: TextStyle(
+                      fontSize: 56,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                      color: colorScheme.primary,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Text(
-                    '回、誘惑に勝った',
+                    MateCopy.homeTemptationsWonSuffix,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -59,12 +66,16 @@ class TodaySummaryCard extends StatelessWidget {
               children: [
                 Icon(Icons.savings_rounded, size: 18, color: colorScheme.secondary),
                 const SizedBox(width: 6),
-                Text(
-                  today.launchAttempts == 0 ? '対象アプリを開くとここに記録されます' : '${today.minutesSaved}分 SAVEしました',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onSurfaceVariant,
+                Expanded(
+                  child: Text(
+                    today.launchAttempts == 0
+                        ? MateCopy.homeNoAttemptsYet
+                        : '${today.minutesSaved}${MateCopy.homeMinutesSavedSuffix}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ],

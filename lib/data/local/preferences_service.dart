@@ -39,6 +39,8 @@ class PreferencesService {
   static const _alwaysGuardPackagesKey = 'always_guard_packages';
   static const _pausedUntilKey = 'paused_until_epoch_ms';
   static const _strictModeKey = 'strict_mode_enabled';
+  static const _onboardingCompletedKey = 'onboarding_completed';
+  static const _soundEffectsEnabledKey = 'sound_effects_enabled';
 
   /// Presented as the only wait-time choices in the UI (Phase 4: fewer,
   /// clearer options rather than a long list).
@@ -149,6 +151,19 @@ class PreferencesService {
   bool get strictModeEnabled => _prefs.getBool(_strictModeKey) ?? false;
 
   Future<void> setStrictModeEnabled(bool value) => _prefs.setBool(_strictModeKey, value);
+
+  /// Whether the first-run onboarding flow (Phase 5) has been completed.
+  /// Defaults to `false` so a fresh install always sees it once.
+  bool get onboardingCompleted => _prefs.getBool(_onboardingCompletedKey) ?? false;
+
+  Future<void> setOnboardingCompleted(bool value) => _prefs.setBool(_onboardingCompletedKey, value);
+
+  /// Whether short button-tap sound effects (Phase 5) play alongside
+  /// haptics. Defaults to `true`; haptics themselves are unaffected by this
+  /// flag — it only gates sound.
+  bool get soundEffectsEnabled => _prefs.getBool(_soundEffectsEnabledKey) ?? true;
+
+  Future<void> setSoundEffectsEnabled(bool value) => _prefs.setBool(_soundEffectsEnabledKey, value);
 
   /// Appends one intervention event, trimming the oldest entries beyond
   /// [_maxEventLogEntries] so this can't grow without bound. The Stats

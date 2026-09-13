@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/copy/mate_copy.dart';
+import '../../core/feedback.dart';
 import '../../data/local/preferences_service.dart';
 import '../../data/models/strict_mode_guard.dart';
 import '../../platform/watcher_coordinator.dart';
@@ -56,16 +58,16 @@ class _AppsScreenState extends State<AppsScreen> {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('見守りを外しますか？'),
-            content: Text('Strict Modeが有効です。$appNameを見守り対象から外します。'),
+            title: const Text(MateCopy.appsUnguardConfirmTitle),
+            content: Text(MateCopy.appsUnguardConfirmBody(appName)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('キャンセル'),
+                child: const Text(MateCopy.cancel),
               ),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('外す'),
+                child: const Text(MateCopy.appsRemove),
               ),
             ],
           ),
@@ -79,6 +81,7 @@ class _AppsScreenState extends State<AppsScreen> {
     final coordinator = context.read<WatcherCoordinator>();
 
     if (!value && !await _confirmUnguard(appName)) return;
+    MateFeedback.tap(preferences);
 
     await appState.setAppGuarded(packageName, value);
 
@@ -96,7 +99,7 @@ class _AppsScreenState extends State<AppsScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('対象アプリ')),
+      appBar: AppBar(title: const Text(MateCopy.navApps)),
       body: appState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -109,13 +112,13 @@ class _AppsScreenState extends State<AppsScreen> {
                         Icon(Icons.apps_outlined, size: 40, color: colorScheme.onSurfaceVariant),
                         const SizedBox(height: 16),
                         Text(
-                          'インストール済みのアプリを取得できませんでした',
+                          MateCopy.appsFetchFailedTitle,
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 14, color: colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '下に引っ張って更新するか、しばらくしてから再度お試しください',
+                          MateCopy.appsFetchFailedHint,
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
                         ),
@@ -125,7 +128,7 @@ class _AppsScreenState extends State<AppsScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                       children: [
                         Text(
-                          '見守ってほしいアプリをONにしてください。行をタップすると待機時間や質問文を変更できます',
+                          MateCopy.appsHint,
                           style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 12),

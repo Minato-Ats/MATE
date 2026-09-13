@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../core/copy/mate_copy.dart';
+import '../../../core/feedback.dart';
+import '../../../core/widgets/mate_switch.dart';
 import '../../../data/local/preferences_service.dart';
 import '../../../data/models/strict_mode_guard.dart';
 
@@ -63,6 +67,8 @@ class _WaitTimeSheetState extends State<WaitTimeSheet> {
   late bool _alwaysGuard;
   late TextEditingController _questionController;
 
+  PreferencesService get _preferences => context.read<PreferencesService>();
+
   @override
   void initState() {
     super.initState();
@@ -79,6 +85,27 @@ class _WaitTimeSheetState extends State<WaitTimeSheet> {
   void dispose() {
     _questionController.dispose();
     super.dispose();
+  }
+
+  void _selectSeconds(int seconds) {
+    MateFeedback.select(_preferences);
+    setState(() => _selectedSeconds = seconds);
+  }
+
+  void _toggleAlwaysGuard(bool value) {
+    MateFeedback.tap(_preferences);
+    setState(() => _alwaysGuard = value);
+  }
+
+  void _save() {
+    MateFeedback.tap(_preferences);
+    Navigator.of(context).pop(
+      AppGuardSettingsResult(
+        waitSeconds: _selectedSeconds,
+        question: _questionController.text.trim(),
+        alwaysGuard: _alwaysGuard,
+      ),
+    );
   }
 
   @override
@@ -108,11 +135,11 @@ class _WaitTimeSheetState extends State<WaitTimeSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${widget.appName}の見守り設定',
+                MateCopy.sheetTitle(widget.appName),
                 style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 20),
-              const Text('待機時間', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              const Text(MateCopy.sheetWaitTimeLabel, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 10,
@@ -122,58 +149,48 @@ class _WaitTimeSheetState extends State<WaitTimeSheet> {
                     ChoiceChip(
                       label: Text('$seconds秒'),
                       selected: seconds == _selectedSeconds,
-                      onSelected: allowedSeconds.contains(seconds)
-                          ? (_) => setState(() => _selectedSeconds = seconds)
-                          : null,
+                      onSelected: allowedSeconds.contains(seconds) ? (_) => _selectSeconds(seconds) : null,
                     ),
                 ],
               ),
               if (widget.strictModeEnabled) ...[
                 const SizedBox(height: 8),
                 Text(
-                  'Strict Mode中は現在より短い待機時間には変更できません',
+                  MateCopy.sheetStrictWaitHint,
                   style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
                 ),
               ],
               const SizedBox(height: 22),
-              const Text('ひとこと質問', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              const Text(MateCopy.sheetQuestionLabel, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               TextField(
                 controller: _questionController,
                 maxLength: 40,
                 decoration: const InputDecoration(
-                  hintText: '何しに開く？',
-                  helperText: '空欄ならデフォルトの文言を使います',
+                  hintText: MateCopy.sheetQuestionHint,
+                  helperText: MateCopy.sheetQuestionHelper,
                   border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 8),
-              SwitchListTile.adaptive(
+              MateSwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('時間帯ルールを無視して常に見守る'),
-                subtitle: const Text('このアプリだけ24時間見守りたい場合に使います'),
+                title: const Text(MateCopy.sheetAlwaysGuardTitle),
+                subtitle: const Text(MateCopy.sheetAlwaysGuardSubtitle),
                 value: _alwaysGuard,
-                onChanged: widget.strictModeEnabled && widget.alwaysGuard
-                    ? null
-                    : (value) => setState(() => _alwaysGuard = value),
+                onChanged: widget.strictModeEnabled && widget.alwaysGuard ? null : _toggleAlwaysGuard,
               ),
               if (widget.strictModeEnabled && widget.alwaysGuard)
                 Text(
-                  'Strict Mode中は「常に見守る」を解除できません',
+                  MateCopy.sheetAlwaysGuardStrictHint,
                   style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant),
                 ),
               const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: () => Navigator.of(context).pop(
-                    AppGuardSettingsResult(
-                      waitSeconds: _selectedSeconds,
-                      question: _questionController.text.trim(),
-                      alwaysGuard: _alwaysGuard,
-                    ),
-                  ),
-                  child: const Text('保存'),
+                  onPressed: _save,
+                  child: const Text(MateCopy.save),
                 ),
               ),
             ],
