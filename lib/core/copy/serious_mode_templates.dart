@@ -180,7 +180,7 @@ class SeriousModeCopy {
     _Template('goal_3', (c) => '「${c.goal}」に近づく1分？それとも遠ざかる1分？'),
     _Template('goal_4', (c) => '「${c.goal}」、今この選択の先にある？'),
     _Template('goal_5', (c) => '「${c.goal}」を思い出して。今、必要な行動かな。'),
-    _Template('goal_6', (c) => '未来の自分は「${c.goal}」を達成してる？今の選択次第。'),
+    _Template('goal_6', (c) => '目標は「${c.goal}」。今の選択、その未来に近づいてる？'),
     _Template('goal_7', (c) => '「${c.goal}」のために我慢するって決めたの、いつだっけ。'),
     _Template('goal_8', (c) => '「${c.goal}」と、今開こうとしてるアプリ。どっちが本当に大事？'),
     _Template('goal_9', (c) => '「${c.goal}」に向けて、今日何かやった？'),
