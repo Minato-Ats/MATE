@@ -36,12 +36,20 @@ class MateCopy {
   static const homeGuardedAppsHint = '対象アプリはいつでも変更できます';
   static const homeGuardedAppsHintEmpty = '「対象アプリ」からいつでも設定できます';
 
+  // Home status banner (Phase 6.5) — a one-glance answer to "is MATE
+  // actually watching right now?", computed from state the app already
+  // has (no new native sync).
+  static const homeStatusGuarding = '見守り中';
+  static const homeStatusPaused = '一時休止中';
+  static const homeStatusNoApps = '見守るアプリを選んでください';
+  static const homeStatusNeedsSetup = '設定が必要です';
+
   // Apps screen
   static const appsHint = '見守ってほしいアプリをONにしてください。行をタップすると待機時間や質問文を変更できます';
   static const appsFetchFailedTitle = 'インストール済みのアプリを取得できませんでした';
   static const appsFetchFailedHint = '下に引っ張って更新するか、しばらくしてから再度お試しください';
   static const appsUnguardConfirmTitle = '見守りを外しますか？';
-  static String appsUnguardConfirmBody(String appName) => 'Strict Modeが有効です。$appNameを見守り対象から外します。';
+  static String appsUnguardConfirmBody(String appName) => 'ルール固定モードが有効です。$appNameを見守り対象から外します。';
   static const appsRemove = '外す';
   static String appsSwitchSemanticLabel(String appName, bool guarded) =>
       '$appNameを見守る、${guarded ? "オン" : "オフ"}';
@@ -51,13 +59,13 @@ class MateCopy {
   // Per-app settings sheet
   static String sheetTitle(String appName) => '$appNameの見守り設定';
   static const sheetWaitTimeLabel = '待機時間';
-  static const sheetStrictWaitHint = 'Strict Mode中は現在より短い待機時間には変更できません';
+  static const sheetStrictWaitHint = 'ルール固定モード中は、今より短い待機時間には変更できません';
   static const sheetQuestionLabel = 'ひとこと質問';
   static const sheetQuestionHint = '何しに開く？';
   static const sheetQuestionHelper = '空欄ならデフォルトの文言を使います';
   static const sheetAlwaysGuardTitle = '時間帯ルールを無視して常に見守る';
   static const sheetAlwaysGuardSubtitle = 'このアプリだけ24時間見守りたい場合に使います';
-  static const sheetAlwaysGuardStrictHint = 'Strict Mode中は「常に見守る」を解除できません';
+  static const sheetAlwaysGuardStrictHint = 'ルール固定モード中は「常に見守る」を解除できません';
 
   // Intervention screen — the one moment every user hits repeatedly, so this
   // is where the "companion, not blocker" voice matters most.
@@ -70,19 +78,32 @@ class MateCopy {
   static const interventionWaitingSemantic = '待機中';
   static const interventionReadySemantic = '開けるようになりました';
 
-  // Settings
-  static const settingsRulesSection = '見守りルール';
-  static const settingsScheduleTitle = '時間帯・曜日を指定';
+  // Settings — reorganized (Phase 6.5) around "usable with almost no
+  // settings touched": 基本設定 holds the handful of things a first-time
+  // user might plausibly want (pause, schedule, sound, theme); everything
+  // else lives collapsed under 詳細設定 so it doesn't compete for attention.
+  static const settingsBasicSection = '基本設定';
+  static const settingsAdvancedSection = '詳細設定';
+  static const settingsOtherSection = 'その他';
+
+  static const settingsScheduleTitle = '見守る時間';
   static const settingsScheduleSubtitleOff = 'OFFなら24時間いつでも見守ります';
   static const settingsScheduleOvernightHint = '終了が開始より早い場合は、日付をまたぐ時間帯として扱います';
   static const settingsPauseTitle = '一時休止';
   static const settingsPauseSubtitle = '15分・30分・1時間・今日いっぱい';
   static const settingsPauseAutoResume = '時間になると自動で見守りを再開します';
   static const settingsResumeNow = '今すぐ再開';
-  static const settingsStrictModeTitle = 'Strict Mode';
-  static const settingsStrictModeSubtitle = '勢いで見守り設定を弱めにくくします。解除不能にはなりません';
+
+  // "Strict Mode" (Phase 4-5) renamed for clarity (Phase 6.5): the old name
+  // didn't say what it does. Wording below must keep matching the actual
+  // behavior in StrictModeGuard — wait time can only be raised not lowered,
+  // unguarding and "常に見守る" both need confirmation, and turning this
+  // itself off has a short delay.
+  static const settingsStrictModeTitle = 'ルール固定モード';
+  static const settingsStrictModeSubtitle =
+      '勉強中や作業中につい設定を甘くしてしまう人向け。ONの間は、待ち時間を短くしたり見守りを外したりを、簡単にはできなくします。';
   static const settingsPauseConfirmTitle = '一時休止しますか？';
-  static const settingsPauseConfirmBody = 'Strict Modeが有効です。一時休止中は対象アプリを開いても介入しません。';
+  static const settingsPauseConfirmBody = 'ルール固定モードが有効です。一時休止中は対象アプリを開いても介入しません。';
   static const settingsContinue = '続ける';
   static const settingsPauseSheetTitle = 'MATEを一時休止';
   static const settingsPauseSheetSubtitle = '終了すると自動で見守りを再開します';
@@ -90,6 +111,13 @@ class MateCopy {
   static const settingsPause30 = '30分';
   static const settingsPause60 = '1時間';
   static const settingsPauseToday = '今日いっぱい';
+  static const settingsSoundEffectsTitle = '操作音（SE）';
+  static const settingsSoundEffectsSubtitle = 'ボタン操作時に短い効果音を鳴らします';
+  static const settingsAppearance = '外観';
+  static const settingsThemeSystem = '自動';
+  static const settingsThemeLight = 'ライト';
+  static const settingsThemeDark = 'ダーク';
+
   static const settingsPermissionsSection = '権限';
   static const settingsUsageAccessTitle = '使用状況へのアクセス';
   static const settingsUsageAccessGranted = '対象アプリの起動を検知できます';
@@ -97,23 +125,21 @@ class MateCopy {
   static const settingsOverlayTitle = '他のアプリの上に表示';
   static const settingsOverlayGranted = '一呼吸おく画面をすぐに表示できます';
   static const settingsOverlayMissing = '見守り対象アプリを開いたときの画面表示に必要です（未許可）';
-  static const settingsDetectionTestTitle = '検知テスト（Phase 1 検証用）';
+  static const settingsDetectionTestTitle = '検知テスト（開発用）';
   static const settingsDetectionTestSubtitle = '前面アプリの検知が動作しているか確認します';
   static const settingsOpenAction = '開く';
   static const settingsGoToSettingsAction = '設定';
-  static const settingsDisplaySection = '表示';
-  static const settingsAppearance = '外観';
-  static const settingsThemeSystem = '自動';
-  static const settingsThemeLight = 'ライト';
-  static const settingsThemeDark = 'ダーク';
+
   static const settingsAboutSection = 'このアプリについて';
   static const settingsVersion = 'バージョン';
-  static const settingsVersionValue = '0.6.0 (Phase 5)';
+  // Plain semantic version only — internal phase/milestone tracking has no
+  // meaning to an end user and doesn't belong in user-facing UI.
+  static const settingsVersionValue = '0.7.0';
   static const settingsPrivacyTitle = 'プライバシー';
   static const settingsPrivacyBody = 'データは端末内にのみ保存され、外部に送信されません';
   static const settingsReplayOnboarding = '使い方をもう一度見る';
   static const settingsReplayOnboardingSubtitle = 'MATEの考え方を、もう一度';
-  static const settingsStrictDisableTitle = 'Strict Modeを解除';
+  static const settingsStrictDisableTitle = 'ルール固定モードを解除';
   static String settingsStrictDisableWaiting(int secondsLeft) => '勢いで解除しないため、あと$secondsLeft秒だけ待ってください。';
   static const settingsStrictDisableReady = '解除できます。必要になったらいつでも再びONにできます。';
   static const settingsStrictDisableCancel = 'やめる';

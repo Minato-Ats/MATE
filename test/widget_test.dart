@@ -127,10 +127,25 @@ void main() {
     await tester.tap(find.text('設定'));
     await tester.pumpAndSettle();
 
-    expect(find.text('時間帯・曜日を指定'), findsOneWidget);
+    expect(find.text('見守る時間'), findsOneWidget);
     expect(find.text('一時休止'), findsOneWidget);
-    expect(find.text('Strict Mode'), findsOneWidget);
+
+    // ルール固定モード (formerly "Strict Mode") lives collapsed under 詳細設定
+    // by design (Phase 6.5: keep the default settings view short) — its
+    // actual on/off behavior is covered by StrictModeGuard's own tests
+    // (phase4_rules_test.dart); here it's enough to confirm the section
+    // renders.
+    expect(find.text('ルール固定モード'), findsOneWidget);
+
+    // 詳細設定 pushes 権限 further down than the initial test viewport (+
+    // cache extent) reaches, so scroll it into view first — same reasoning
+    // as the 外観 scroll above.
+    await tester.scrollUntilVisible(
+      find.text('使用状況へのアクセス'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('使用状況へのアクセス'), findsOneWidget);
-    expect(find.text('検知テスト（Phase 1 検証用）'), findsOneWidget);
+    expect(find.text('検知テスト（開発用）'), findsOneWidget);
   });
 }

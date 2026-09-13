@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -225,7 +226,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
-          _SectionLabel(MateCopy.settingsRulesSection),
+          // 基本設定: the handful of things a first-time user might plausibly
+          // want to touch. Deliberately everything else lives one tap away
+          // under 詳細設定 instead of competing for attention here.
+          _SectionLabel(MateCopy.settingsBasicSection),
+          Card(
+            child: pausedUntil == null
+                ? ListTile(
+                    leading: const Icon(Icons.pause_circle_outline_rounded),
+                    title: const Text(MateCopy.settingsPauseTitle),
+                    subtitle: const Text(MateCopy.settingsPauseSubtitle),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: _choosePause,
+                  )
+                : ListTile(
+                    leading: const Icon(Icons.pause_circle_filled_rounded),
+                    title: Text(_pauseLabel(pausedUntil)),
+                    subtitle: const Text(MateCopy.settingsPauseAutoResume),
+                    trailing: TextButton(onPressed: _resumeNow, child: const Text(MateCopy.settingsResumeNow)),
+                  ),
+          ),
+          const SizedBox(height: 12),
           Card(
             child: Column(
               children: [
@@ -292,71 +313,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           Card(
-            child: pausedUntil == null
-                ? ListTile(
-                    leading: const Icon(Icons.pause_circle_outline_rounded),
-                    title: const Text(MateCopy.settingsPauseTitle),
-                    subtitle: const Text(MateCopy.settingsPauseSubtitle),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: _choosePause,
-                  )
-                : ListTile(
-                    leading: const Icon(Icons.pause_circle_filled_rounded),
-                    title: Text(_pauseLabel(pausedUntil)),
-                    subtitle: const Text(MateCopy.settingsPauseAutoResume),
-                    trailing: TextButton(onPressed: _resumeNow, child: const Text(MateCopy.settingsResumeNow)),
-                  ),
+            child: MateSwitchListTile(
+              title: const Text(MateCopy.settingsSoundEffectsTitle),
+              subtitle: const Text(MateCopy.settingsSoundEffectsSubtitle),
+              value: soundEffectsEnabled,
+              onChanged: _toggleSoundEffects,
+            ),
           ),
           const SizedBox(height: 12),
-          Card(
-            child: MateSwitchListTile(
-              title: const Text(MateCopy.settingsStrictModeTitle),
-              subtitle: const Text(MateCopy.settingsStrictModeSubtitle),
-              value: strictModeEnabled,
-              onChanged: _setStrictMode,
-            ),
-          ),
-          const SizedBox(height: 24),
-          _SectionLabel(MateCopy.settingsPermissionsSection),
-          Card(
-            child: Column(
-              children: [
-                _InfoRow(
-                  icon: hasUsageAccess ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
-                  title: MateCopy.settingsUsageAccessTitle,
-                  subtitle: hasUsageAccess
-                      ? MateCopy.settingsUsageAccessGranted
-                      : MateCopy.settingsUsageAccessMissing,
-                  trailing: hasUsageAccess ? null : MateCopy.settingsGoToSettingsAction,
-                  onTrailingTap: hasUsageAccess
-                      ? null
-                      : () => context.read<UsageAccessController>().openSettings(),
-                ),
-                Divider(height: 1, color: colorScheme.outlineVariant),
-                _InfoRow(
-                  icon: hasOverlayAccess ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
-                  title: MateCopy.settingsOverlayTitle,
-                  subtitle: hasOverlayAccess ? MateCopy.settingsOverlayGranted : MateCopy.settingsOverlayMissing,
-                  trailing: hasOverlayAccess ? null : MateCopy.settingsGoToSettingsAction,
-                  onTrailingTap: hasOverlayAccess
-                      ? null
-                      : () => context.read<OverlayAccessController>().openSettings(),
-                ),
-                Divider(height: 1, color: colorScheme.outlineVariant),
-                _InfoRow(
-                  icon: Icons.bug_report_outlined,
-                  title: MateCopy.settingsDetectionTestTitle,
-                  subtitle: MateCopy.settingsDetectionTestSubtitle,
-                  trailing: MateCopy.settingsOpenAction,
-                  onTrailingTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const DetectionTestScreen()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          _SectionLabel(MateCopy.settingsDisplaySection),
           Card(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -393,20 +357,93 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+
+          const SizedBox(height: 24),
+          _SectionLabel(MateCopy.settingsAdvancedSection),
           Card(
-            child: MateSwitchListTile(
-              title: const Text('操作音（SE）'),
-              subtitle: const Text('ボタン操作時に短い効果音を鳴らします'),
-              value: soundEffectsEnabled,
-              onChanged: _toggleSoundEffects,
+            clipBehavior: Clip.antiAlias,
+            child: Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                title: const Text(MateCopy.settingsStrictModeTitle, style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(strictModeEnabled ? 'ON' : 'OFF'),
+                childrenPadding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      MateCopy.settingsStrictModeSubtitle,
+                      style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  MateSwitchListTile(
+                    title: const Text(MateCopy.settingsStrictModeTitle),
+                    value: strictModeEnabled,
+                    onChanged: _setStrictMode,
+                  ),
+                ],
+              ),
             ),
           ),
+
           const SizedBox(height: 24),
-          _SectionLabel(MateCopy.settingsAboutSection),
+          _SectionLabel(MateCopy.settingsPermissionsSection),
           Card(
             child: Column(
               children: [
+                _InfoRow(
+                  icon: hasUsageAccess ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
+                  title: MateCopy.settingsUsageAccessTitle,
+                  subtitle: hasUsageAccess
+                      ? MateCopy.settingsUsageAccessGranted
+                      : MateCopy.settingsUsageAccessMissing,
+                  trailing: hasUsageAccess ? null : MateCopy.settingsGoToSettingsAction,
+                  onTrailingTap: hasUsageAccess
+                      ? null
+                      : () => context.read<UsageAccessController>().openSettings(),
+                ),
+                Divider(height: 1, color: colorScheme.outlineVariant),
+                _InfoRow(
+                  icon: hasOverlayAccess ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
+                  title: MateCopy.settingsOverlayTitle,
+                  subtitle: hasOverlayAccess ? MateCopy.settingsOverlayGranted : MateCopy.settingsOverlayMissing,
+                  trailing: hasOverlayAccess ? null : MateCopy.settingsGoToSettingsAction,
+                  onTrailingTap: hasOverlayAccess
+                      ? null
+                      : () => context.read<OverlayAccessController>().openSettings(),
+                ),
+                // Developer-only diagnostic screen — never shown in a release
+                // build (end users have no use for a raw detection log).
+                if (kDebugMode) ...[
+                  Divider(height: 1, color: colorScheme.outlineVariant),
+                  _InfoRow(
+                    icon: Icons.bug_report_outlined,
+                    title: MateCopy.settingsDetectionTestTitle,
+                    subtitle: MateCopy.settingsDetectionTestSubtitle,
+                    trailing: MateCopy.settingsOpenAction,
+                    onTrailingTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const DetectionTestScreen()),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          _SectionLabel(MateCopy.settingsOtherSection),
+          Card(
+            child: Column(
+              children: [
+                _InfoRow(
+                  icon: Icons.favorite_outline_rounded,
+                  title: MateCopy.settingsReplayOnboarding,
+                  subtitle: MateCopy.settingsReplayOnboardingSubtitle,
+                  trailing: MateCopy.settingsOpenAction,
+                  onTrailingTap: _replayOnboarding,
+                ),
+                Divider(height: 1, color: colorScheme.outlineVariant),
                 const _InfoRow(
                   icon: Icons.info_outline_rounded,
                   title: MateCopy.settingsVersion,
@@ -417,14 +454,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.lock_outline_rounded,
                   title: MateCopy.settingsPrivacyTitle,
                   subtitle: MateCopy.settingsPrivacyBody,
-                ),
-                Divider(height: 1, color: colorScheme.outlineVariant),
-                _InfoRow(
-                  icon: Icons.favorite_outline_rounded,
-                  title: MateCopy.settingsReplayOnboarding,
-                  subtitle: MateCopy.settingsReplayOnboardingSubtitle,
-                  trailing: MateCopy.settingsOpenAction,
-                  onTrailingTap: _replayOnboarding,
                 ),
               ],
             ),

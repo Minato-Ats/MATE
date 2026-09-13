@@ -41,6 +41,7 @@ class _AppRoot extends StatefulWidget {
 
 class _AppRootState extends State<_AppRoot> {
   late bool _showOnboarding;
+  bool _justFinishedOnboarding = false;
 
   @override
   void initState() {
@@ -51,8 +52,16 @@ class _AppRootState extends State<_AppRoot> {
   @override
   Widget build(BuildContext context) {
     if (_showOnboarding) {
-      return OnboardingScreen(onDone: () => setState(() => _showOnboarding = false));
+      return OnboardingScreen(
+        onDone: () => setState(() {
+          _showOnboarding = false;
+          _justFinishedOnboarding = true;
+        }),
+      );
     }
-    return const MainShell();
+    // A brand-new user's very next action should be picking an app to
+    // guard — land there directly instead of on Home, which would just
+    // show empty stats and one more tap to get where they're going anyway.
+    return MainShell(initialIndex: _justFinishedOnboarding ? 1 : 0);
   }
 }
