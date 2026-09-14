@@ -214,32 +214,32 @@ class _SeriousModeFlowState extends State<SeriousModeFlow> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              CircleAvatar(
-                radius: 36,
-                backgroundColor: colorScheme.secondaryContainer,
-                backgroundImage: widget.args.iconBytes != null ? MemoryImage(widget.args.iconBytes!) : null,
-                child: widget.args.iconBytes == null
-                    ? Icon(Icons.apps_rounded, size: 32, color: colorScheme.onSecondaryContainer)
-                    : null,
-              ),
-              const SizedBox(height: 20),
-              Text(
-                MateCopy.seriousModeStepTitle(widget.args.appName),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 24),
-              // The step content (question/sting text, input, buttons) sits
-              // centered in the remaining space below the icon/title — not
-              // pinned to the top of it — so the screen's visual weight
-              // lands near the middle instead of leaving a large dead zone
-              // at the bottom. Still scrolls instead of overflowing if a
-              // long sting message + keyboard don't fit on a small screen.
-              Expanded(child: CenteredScrollArea(child: _buildStep(colorScheme))),
-            ],
+          // Icon, title, and the current step's content are one visual
+          // block, centered together — not icon/title pinned to the top
+          // with the step content centered separately below it, which read
+          // as two disconnected halves rather than one screen.
+          child: CenteredScrollArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  radius: 36,
+                  backgroundColor: colorScheme.secondaryContainer,
+                  backgroundImage: widget.args.iconBytes != null ? MemoryImage(widget.args.iconBytes!) : null,
+                  child: widget.args.iconBytes == null
+                      ? Icon(Icons.apps_rounded, size: 32, color: colorScheme.onSecondaryContainer)
+                      : null,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  MateCopy.seriousModeStepTitle(widget.args.appName),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 24),
+                _buildStep(colorScheme),
+              ],
+            ),
           ),
         ),
       ),
