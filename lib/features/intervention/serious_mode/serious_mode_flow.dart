@@ -6,6 +6,7 @@ import '../../../core/copy/mate_copy.dart';
 import '../../../core/copy/serious_mode_templates.dart';
 import '../../../core/feedback.dart';
 import '../../../core/time/clock.dart';
+import '../../../core/widgets/centered_scroll_area.dart';
 import '../../../data/local/preferences_service.dart';
 import '../../../data/models/intervention_event.dart';
 import '../../../platform/intervention_bridge.dart';
@@ -215,7 +216,7 @@ class _SeriousModeFlowState extends State<SeriousModeFlow> {
           padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
           child: Column(
             children: [
-              const Spacer(),
+              const SizedBox(height: 12),
               CircleAvatar(
                 radius: 36,
                 backgroundColor: colorScheme.secondaryContainer,
@@ -231,15 +232,13 @@ class _SeriousModeFlowState extends State<SeriousModeFlow> {
                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 24),
-              // A SingleChildScrollView (rather than Center) so a long sting
-              // message on a small/short screen scrolls instead of
-              // overflowing — the content is still short enough to look
-              // centered on any normal phone screen.
-              Expanded(
-                child: SingleChildScrollView(
-                  child: _buildStep(colorScheme),
-                ),
-              ),
+              // The step content (question/sting text, input, buttons) sits
+              // centered in the remaining space below the icon/title — not
+              // pinned to the top of it — so the screen's visual weight
+              // lands near the middle instead of leaving a large dead zone
+              // at the bottom. Still scrolls instead of overflowing if a
+              // long sting message + keyboard don't fit on a small screen.
+              Expanded(child: CenteredScrollArea(child: _buildStep(colorScheme))),
             ],
           ),
         ),

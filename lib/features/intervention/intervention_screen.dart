@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/copy/mate_copy.dart';
 import '../../core/feedback.dart';
+import '../../core/widgets/centered_scroll_area.dart';
 import '../../data/local/preferences_service.dart';
 import '../../data/models/intervention_event.dart';
 import '../../platform/intervention_bridge.dart';
@@ -173,6 +174,15 @@ class _InterventionScreenState extends State<InterventionScreen> {
 
     if (_seriousMode) {
       return SeriousModeFlow(
+        // Keyed by package name so switching to a *different* guarded app
+        // while this singleTask Activity is reused (see setOnArgsChanged
+        // above) always starts a fresh flow — without this, Flutter keeps
+        // the same State object across the args change and the new app's
+        // screen could show stale step/timer state left over from
+        // whichever app was being intervened on before (confirmed via real
+        // device testing: Chrome's escalated wait bled into YouTube's
+        // screen when YouTube was opened while Chrome's was still pending).
+        key: ValueKey(args.packageName),
         args: args,
         preferences: _preferences!,
         normalWaitSeconds: _totalWaitSeconds,
@@ -187,7 +197,7 @@ class _InterventionScreenState extends State<InterventionScreen> {
           padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
           child: Column(
             children: [
-              const Spacer(),
+              const SizedBox(height: 12),
               CircleAvatar(
                 radius: 36,
                 backgroundColor: colorScheme.secondaryContainer,
@@ -202,45 +212,60 @@ class _InterventionScreenState extends State<InterventionScreen> {
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 8),
-              Text(
-                _waitCompleted ? MateCopy.interventionReadySubtitle : MateCopy.interventionWaitingSubtitle,
-                style: TextStyle(fontSize: 14, color: colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 28),
-              TextField(
-                controller: _purposeController,
-                textAlign: TextAlign.center,
-                decoration: InputDecoration(
-                  hintText: MateCopy.interventionHint(_question),
-                  border: const OutlineInputBorder(),
+              const SizedBox(height: 24),
+              // The rest of the content (subtitle/input/ring/buttons) is
+              // centered in the space below the icon/title — not pinned to
+              // the top of it — so the screen's visual weight lands near
+              // the middle instead of leaving a large dead zone at the
+              // bottom. Still scrolls instead of overflowing if the
+              // keyboard doesn't leave enough room on a small screen.
+              Expanded(
+                child: CenteredScrollArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _waitCompleted ? MateCopy.interventionReadySubtitle : MateCopy.interventionWaitingSubtitle,
+                        style: TextStyle(fontSize: 14, color: colorScheme.onSurfaceVariant),
+                      ),
+                      const SizedBox(height: 28),
+                      TextField(
+                        controller: _purposeController,
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          hintText: MateCopy.interventionHint(_question),
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      WaitCountdownRing(
+                        remainingSeconds: _remainingSeconds,
+                        totalSeconds: _totalWaitSeconds,
+                        waitCompleted: _waitCompleted,
+                      ),
+                      const SizedBox(height: 32),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _giveUp,
+                              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                              child: const Text(MateCopy.interventionGiveUp),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: _waitCompleted ? _open : null,
+                              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                              child: const Text(MateCopy.interventionOpen),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 32),
-              WaitCountdownRing(
-                remainingSeconds: _remainingSeconds,
-                totalSeconds: _totalWaitSeconds,
-                waitCompleted: _waitCompleted,
-              ),
-              const Spacer(),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _giveUp,
-                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                      child: const Text(MateCopy.interventionGiveUp),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _waitCompleted ? _open : null,
-                      style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                      child: const Text(MateCopy.interventionOpen),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),

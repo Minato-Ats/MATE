@@ -396,5 +396,59 @@ void main() {
 
       expect(gaveUp, isTrue);
     });
+
+    testWidgets(
+      'switching to a different guarded app mid-flow starts a fresh flow, not stale state '
+      '(regression: InterventionActivity is singleTask and reused across apps via setOnArgsChanged)',
+      (tester) async {
+        final prefs = await PreferencesService.create();
+        const argsA = InterventionArgs(packageName: 'com.android.chrome', appName: 'Chrome');
+        const argsB = InterventionArgs(packageName: 'com.google.android.youtube', appName: 'YouTube');
+
+        // Drive app A to the escalated-wait step, exactly as InterventionScreen
+        // would render it — keyed by package name, the same way
+        // intervention_screen.dart now keys SeriousModeFlow.
+        await tester.pumpWidget(wrap(SeriousModeFlow(
+          key: const ValueKey('com.android.chrome'),
+          args: argsA,
+          preferences: prefs,
+          normalWaitSeconds: 5,
+          onGiveUp: () async {},
+          onOpen: () async {},
+          clock: Clock.fixed(DateTime(2026, 1, 1, 10)),
+        )));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField), '暇つぶし');
+        await tester.tap(find.text('つぎへ'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('必要ない'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('それでも開く'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('15'), findsOneWidget, reason: 'app A should be mid-escalated-wait');
+
+        // Now simulate InterventionScreen re-rendering for a *different*
+        // guarded app (the native argsChanged callback firing) while app A's
+        // screen was never resolved — the widget swaps to a new key.
+        await tester.pumpWidget(wrap(SeriousModeFlow(
+          key: const ValueKey('com.google.android.youtube'),
+          args: argsB,
+          preferences: prefs,
+          normalWaitSeconds: 5,
+          onGiveUp: () async {},
+          onOpen: () async {},
+          clock: Clock.fixed(DateTime(2026, 1, 1, 10)),
+        )));
+        await tester.pumpAndSettle();
+
+        // Must start over at the reason step for the new app, not show app
+        // A's leftover escalated-wait screen under app B's name/icon.
+        expect(find.text('何のために開く？'), findsOneWidget);
+        expect(find.text('YouTubeを開く？'), findsOneWidget);
+        expect(find.text('15'), findsNothing);
+      },
+    );
   });
 }
