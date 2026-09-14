@@ -8,10 +8,15 @@ plugins {
 }
 
 // Release signing (Play App Signing upload key). key.properties/*.jks are
-// gitignored and never committed — see android/.gitignore. Falls back to the
-// debug signing config when key.properties doesn't exist (e.g. a fresh
-// checkout without the secret), matching Flutter's own documented pattern:
-// https://docs.flutter.dev/deployment/android#configure-signing-in-gradle
+// gitignored and never committed — see android/.gitignore.
+//
+// Deliberately does NOT fall back to the debug signing config when
+// key.properties is missing (that was fine during development, but this
+// project is now pre-release: shipping a "release" build silently signed
+// with the debug key must never happen again). Instead, any Gradle task
+// whose name contains "Release" is made to fail fast — see the
+// tasks.configureEach block below — while debug builds are completely
+// unaffected regardless of whether key.properties exists.
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
 val hasReleaseSigning = keystorePropertiesFile.exists()
@@ -56,14 +61,30 @@ android {
 
     buildTypes {
         release {
-            // Real upload-key signing once key.properties is present (see
-            // above); otherwise falls back to the debug key so a checkout
-            // without the secret can still build/run in release mode.
-            signingConfig = if (hasReleaseSigning) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            // Real upload-key signing when key.properties is present;
+            // otherwise left unsigned — the tasks.configureEach block below
+            // turns that into an explicit build failure before any release
+            // artifact could actually be produced, rather than silently
+            // falling back to the debug key or shipping an unsigned build.
+            signingConfig = if (hasReleaseSigning) signingConfigs.getByName("release") else null
+        }
+    }
+}
+
+// Refuse to produce ANY release-flavored output without real signing in
+// place. Matches by task name (contains "Release") rather than hardcoding
+// just assembleRelease/bundleRelease so this can't be bypassed by invoking
+// an intermediate Gradle task directly. Debug tasks never match this and
+// are completely unaffected either way.
+tasks.configureEach {
+    if (!hasReleaseSigning && name.contains("Release")) {
+        doFirst {
+            throw GradleException(
+                "Refusing to run '$name': no release signing found at " +
+                    "android/key.properties. Release builds must be signed with the " +
+                    "real upload keystore — see the signing setup notes; debug builds " +
+                    "are unaffected by this check.",
+            )
         }
     }
 }
