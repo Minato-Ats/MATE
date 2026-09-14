@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/copy/mate_copy.dart';
 import '../../../core/copy/serious_mode_templates.dart';
 import '../../../core/feedback.dart';
+import '../../../core/junk_reason_detector.dart';
 import '../../../core/time/clock.dart';
 import '../../../core/widgets/centered_scroll_area.dart';
 import '../../../data/local/preferences_service.dart';
@@ -66,7 +67,15 @@ class _SeriousModeFlowState extends State<SeriousModeFlow> {
   String _reason = '';
   String? _stingMessage;
   String? _yesAckMessage;
-  bool _showReasonRequiredHint = false;
+  String? _reasonErrorText;
+  String? _reasonSubHint;
+
+  // Counts JunkReasonDetector rejections within this one intervention
+  // session only (never persisted — resets whenever a fresh SeriousModeFlow
+  // is created, e.g. for the next guarded-app trigger). The 2nd+ rejection
+  // gets the sharper MateCopy.seriousModeReasonJunkRepeatedHint instead of
+  // the softer first-time re-prompt.
+  int _junkRejectionCount = 0;
 
   Timer? _timer;
   int _waitTotal = 0;
@@ -105,7 +114,23 @@ class _SeriousModeFlowState extends State<SeriousModeFlow> {
   void _submitReason() {
     final trimmed = _reasonController.text.trim();
     if (trimmed.isEmpty) {
-      setState(() => _showReasonRequiredHint = true);
+      setState(() {
+        _reasonErrorText = MateCopy.seriousModeReasonRequiredHint;
+        _reasonSubHint = null;
+      });
+      return;
+    }
+    if (JunkReasonDetector.isJunk(trimmed)) {
+      _junkRejectionCount += 1;
+      setState(() {
+        if (_junkRejectionCount >= 2) {
+          _reasonErrorText = MateCopy.seriousModeReasonJunkRepeatedHint;
+          _reasonSubHint = MateCopy.seriousModeReasonJunkRepeatedSubHint;
+        } else {
+          _reasonErrorText = MateCopy.seriousModeReasonJunkFirstHint;
+          _reasonSubHint = null;
+        }
+      });
       return;
     }
     MateFeedback.select(widget.preferences);
@@ -251,7 +276,8 @@ class _SeriousModeFlowState extends State<SeriousModeFlow> {
       case _Step.reason:
         return _ReasonStep(
           controller: _reasonController,
-          showRequiredHint: _showReasonRequiredHint,
+          errorText: _reasonErrorText,
+          subHint: _reasonSubHint,
           onSubmit: _submitReason,
         );
       case _Step.need:
@@ -285,14 +311,29 @@ class _SeriousModeFlowState extends State<SeriousModeFlow> {
 }
 
 class _ReasonStep extends StatelessWidget {
-  const _ReasonStep({required this.controller, required this.showRequiredHint, required this.onSubmit});
+  const _ReasonStep({
+    required this.controller,
+    required this.errorText,
+    required this.subHint,
+    required this.onSubmit,
+  });
 
   final TextEditingController controller;
-  final bool showRequiredHint;
+
+  /// Shown as the TextField's error text — either the plain "please type
+  /// something" required-hint, or (only in 本気モード) a
+  /// JunkReasonDetector rejection message.
+  final String? errorText;
+
+  /// Extra short line shown below the field, only for the 2nd+ junk
+  /// rejection in this session ("それでも開きたいなら、ちゃんと理由を書いて。").
+  final String? subHint;
+
   final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -311,9 +352,18 @@ class _ReasonStep extends StatelessWidget {
           decoration: InputDecoration(
             hintText: MateCopy.seriousModeReasonHint,
             border: const OutlineInputBorder(),
-            errorText: showRequiredHint ? MateCopy.seriousModeReasonRequiredHint : null,
+            errorText: errorText,
+            errorMaxLines: 3,
           ),
         ),
+        if (subHint != null) ...[
+          const SizedBox(height: 12),
+          Text(
+            subHint!,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
+          ),
+        ],
         const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,

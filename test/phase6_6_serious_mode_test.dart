@@ -262,6 +262,48 @@ void main() {
       expect(find.text('それ、今必要？'), findsNothing, reason: 'empty reason must not be allowed to proceed');
     });
 
+    testWidgets(
+      'junk reason input (本気モード input-dodging): 1st rejection shows the re-prompt, '
+      '2nd+ rejection shows the fixed "そこまでして..." line, and a genuine reason still proceeds',
+      (tester) async {
+        final prefs = await PreferencesService.create();
+        await tester.pumpWidget(wrap(SeriousModeFlow(
+          args: args,
+          preferences: prefs,
+          normalWaitSeconds: 0,
+          onGiveUp: () async {},
+          onOpen: () async {},
+          clock: Clock.fixed(DateTime(2026, 1, 1, 10)),
+        )));
+        await tester.pumpAndSettle();
+
+        // 1st junk submission ("ああああ") -> soft re-prompt, still on the
+        // reason step.
+        await tester.enterText(find.byType(TextField), 'ああああ');
+        await tester.tap(find.text('つぎへ'));
+        await tester.pump();
+        expect(find.text('それ、本当に理由？\n何のために開くのか、もう一回だけ書いて。'), findsOneWidget);
+        expect(find.text('それ、今必要？'), findsNothing);
+
+        // 2nd junk submission ("qwerty") -> the fixed, stronger line plus
+        // its sub-hint — wording must match exactly, this is the
+        // officially-adopted copy.
+        await tester.enterText(find.byType(TextField), 'qwerty');
+        await tester.tap(find.text('つぎへ'));
+        await tester.pump();
+        expect(find.text('そこまでして入力を飛ばしたいんだ。'), findsOneWidget);
+        expect(find.text('それでも開きたいなら、\nちゃんと理由を書いて。'), findsOneWidget);
+        expect(find.text('それ、今必要？'), findsNothing);
+
+        // A genuine reason after being rejected twice must still work
+        // normally — this isn't a hard lockout.
+        await tester.enterText(find.byType(TextField), '調べ物');
+        await tester.tap(find.text('つぎへ'));
+        await tester.pumpAndSettle();
+        expect(find.text('それ、今必要？'), findsOneWidget);
+      },
+    );
+
     testWidgets('YES branch: never escalates, uses the normal wait, and calls onOpen', (tester) async {
       final prefs = await PreferencesService.create();
       var opened = false;

@@ -173,6 +173,14 @@ class MateCopy {
   static const seriousModeReasonHint = '例：暇つぶし、返信、仕事の確認';
   static const seriousModeReasonRequiredHint = '一言だけでいいので入力してね';
   static const seriousModeReasonContinue = 'つぎへ';
+
+  // 本気モード: 明らかな入力逃げ（同じ文字の連打・記号だけ・qwerty等）を
+  // JunkReasonDetectorで検知した際のメッセージ。1回目は再入力を促すだけ、
+  // 2回目以降（同一介入セッション中）はこの正式文言を必ず使う — 表現を
+  // 変えない。
+  static const seriousModeReasonJunkFirstHint = 'それ、本当に理由？\n何のために開くのか、もう一回だけ書いて。';
+  static const seriousModeReasonJunkRepeatedHint = 'そこまでして入力を飛ばしたいんだ。';
+  static const seriousModeReasonJunkRepeatedSubHint = 'それでも開きたいなら、\nちゃんと理由を書いて。';
   static const seriousModeNeedQuestion = 'それ、今必要？';
   static const seriousModeNeedYes = '必要';
   static const seriousModeNeedNo = '必要ない';
