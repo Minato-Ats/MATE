@@ -1,7 +1,8 @@
 // Unit tests for JunkReasonDetector — the local heuristic that rejects
 // obvious input-dodging in 本気モード's required "何のために開く？" field
-// (keyboard mashing, symbols-only, keyboard-walk strings) without any
-// natural-language understanding, AI, or network access.
+// (keyboard mashing, symbols-only text including emoji, keyboard-walk
+// strings, and extremely short ASCII-only input) without any natural-
+// language understanding, AI, or network access.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mate/core/junk_reason_detector.dart';
@@ -26,6 +27,15 @@ void main() {
       'QWERTY': 'keyboard walk, uppercase',
       '  qwerty  ': 'keyboard walk with surrounding whitespace',
       'zxcvbn': 'keyboard walk',
+      'a': 'extremely short ASCII-only input',
+      'ab': 'extremely short ASCII-only input',
+      'OK': 'extremely short ASCII-only input (not a keyboard-walk pattern, but still too short)',
+      '😀': 'emoji only (not a letter/number)',
+      '😂😂': 'emoji only, repeated',
+      '🔥🔥🔥': 'emoji only, repeated',
+      '🔥！': 'emoji + symbol only, no letters/numbers',
+      'DM': 'short ASCII-only abbreviation — write something more specific '
+          'like "DM返信" instead',
     };
 
     rejectCases.forEach((input, reason) {
@@ -47,12 +57,12 @@ void main() {
       '数学の解説を見る': 'required example',
       '調べ物': 'plausible short reason',
       'はい': 'plausible short reason, 2 distinct kana',
-      'a': 'boundary: single character must not be rejected by length alone',
-      'ab': 'boundary: 2 distinct characters, short',
-      'OK': '2 distinct ascii letters, not a keyboard-walk pattern',
       '暇つぶし': 'reason used elsewhere in the app (Phase 6.6 example)',
       '仕事の確認': 'longer genuine reason, all distinct characters',
       '8時から会議': 'reason containing digits mixed with real words',
+      'DM返信': 'required example: short abbreviation + Japanese, not ASCII-only',
+      'AIについて調べる': 'required example: ASCII prefix + Japanese, not ASCII-only',
+      'YouTubeで数学を見る': 'required example: ASCII word + Japanese, not ASCII-only',
     };
 
     acceptCases.forEach((input, reason) {
@@ -92,6 +102,20 @@ void main() {
 
     test('mixed symbol + real word is accepted (not symbols-only)', () {
       expect(JunkReasonDetector.isJunk('！返信'), isFalse);
+    });
+
+    test('a 4-character ASCII-only word sits right at the floor and is accepted', () {
+      expect(JunkReasonDetector.isJunk('work'), isFalse);
+    });
+
+    test('a 3-character ASCII-only word is still too short and is rejected', () {
+      expect(JunkReasonDetector.isJunk('yes'), isTrue);
+    });
+
+    test('mixing in a single non-ASCII character exempts short input from the ASCII-only floor', () {
+      // "AI" alone would be rejected (2 ASCII characters), but "AI調べ" is
+      // no longer all-ASCII, so the floor never applies to it.
+      expect(JunkReasonDetector.isJunk('AI調べ'), isFalse);
     });
   });
 }

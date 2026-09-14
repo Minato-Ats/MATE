@@ -1,23 +1,39 @@
 /// Detects obviously junk/low-effort input in 本気モード's required "何のために
 /// 開く？" reason field — keyboard mashing, single-character spam, symbols-only
-/// text, and keyboard-walk strings (qwerty, asdf, ...).
+/// text (including emoji-only text), keyboard-walk strings (qwerty, asdf,
+/// ...), and extremely short ASCII-only input ("a", "ab", "OK") that would
+/// otherwise be just as easy an escape hatch as keyboard mashing.
 ///
 /// Deliberately NOT natural-language understanding: this can't and isn't
 /// meant to judge whether a reason is *true* or *sensible* — only whether it
 /// looks like someone typed *something* just to get past the input
 /// requirement without writing anything at all. Every check is a cheap,
 /// explainable string heuristic (character-distinctness, exact short-pattern
-/// repetition, a small curated keyboard-walk list); there is no AI/API call
-/// or network access involved, and none of this runs outside 本気モード —
-/// the normal-mode purpose field (always optional) never calls this.
+/// repetition, a small curated keyboard-walk list, an ASCII-only length
+/// floor); there is no AI/API call or network access involved, and none of
+/// this runs outside 本気モード — the normal-mode purpose field (always
+/// optional) never calls this.
+///
+/// The ASCII-only length floor is deliberately *not* a universal minimum
+/// length: a short Japanese reason ("返信", "仕事") is exactly as valid as
+/// ever regardless of length, and any input that mixes in even one
+/// non-ASCII character ("DM返信", "AIについて調べる") is exempt from it too
+/// — it only fires when the *entire* input is short ASCII, which is the
+/// specific escape hatch ("a", "ab", "OK") this rule closes.
 class JunkReasonDetector {
   JunkReasonDetector._();
 
   /// Matches at least one Unicode letter or number. Used to reject
-  /// symbols-only input (e.g. "！！！！" or "。。。。") without needing a
-  /// per-script allowlist — anything with zero letters/digits in it is
-  /// treated as not having said anything.
+  /// symbols-only input (e.g. "！！！！", "。。。。", or emoji-only text like
+  /// "😀" — emoji are Unicode Symbol/Other characters, not letters or
+  /// numbers) without needing a per-script allowlist — anything with zero
+  /// letters/digits in it is treated as not having said anything.
   static final RegExp _wordCharPattern = RegExp(r'[\p{L}\p{N}]', unicode: true);
+
+  /// ASCII-only input shorter than this (in code points) is rejected as too
+  /// short to be a real answer rather than a fast way to dodge the prompt —
+  /// see the class doc for why this only applies to all-ASCII input.
+  static const _minAsciiOnlyLength = 4;
 
   static const _keyboardWalkPatterns = [
     'qwerty',
@@ -51,6 +67,14 @@ class JunkReasonDetector {
     // Same character repeated (e.g. "ああああ", "aaaaaa", "111111", "。。。。"),
     // but not a single genuine short word ("a", "ん" alone is fine).
     if (runes.length >= 2 && distinct == 1) return true;
+
+    // All-ASCII input below the length floor ("a", "ab", "OK") — a mix with
+    // even one non-ASCII character (e.g. "DM返信") skips this entirely, and
+    // Japanese-only short reasons never hit it since this only looks at
+    // all-ASCII strings.
+    if (runes.length < _minAsciiOnlyLength && runes.every((r) => r <= 0x7F)) {
+      return true;
+    }
 
     // A short pattern (of any length, not just one character) repeated 3+
     // times back to back — e.g. "あいあいあいあい" (period 2). Deliberately
