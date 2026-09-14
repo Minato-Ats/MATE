@@ -1,4 +1,4 @@
-package com.example.mate
+package com.minatoapps.mate
 
 import android.app.AppOpsManager
 import android.content.Context

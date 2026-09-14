@@ -1,4 +1,4 @@
-package com.example.mate
+package com.minatoapps.mate
 
 /**
  * In-process, in-memory state shared between [MainActivity], [ForegroundWatcherService]

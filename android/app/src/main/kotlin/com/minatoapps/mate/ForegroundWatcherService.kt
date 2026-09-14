@@ -1,4 +1,4 @@
-package com.example.mate
+package com.minatoapps.mate
 
 import android.app.Notification
 import android.app.NotificationChannel

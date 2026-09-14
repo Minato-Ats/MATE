@@ -1,4 +1,4 @@
-package com.example.mate
+package com.minatoapps.mate
 
 import android.content.Intent
 import io.flutter.embedding.android.FlutterActivity

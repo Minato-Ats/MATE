@@ -1,4 +1,4 @@
-package com.example.mate
+package com.minatoapps.mate
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -18,7 +18,7 @@ import android.provider.Settings
  * else has booted yet at this point).
  *
  * Deliberately does nothing if either required permission has since been
- * revoked (matches [com.example.mate].WatcherCoordinator's own
+ * revoked (matches the Dart side's WatcherCoordinator's own
  * guardedPackages-not-empty && hasUsageAccess && hasOverlayAccess condition
  * on the Dart side) — starting a service that would immediately be unable to
  * do anything useful isn't worth doing.

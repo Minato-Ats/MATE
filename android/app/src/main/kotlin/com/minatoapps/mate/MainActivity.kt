@@ -1,4 +1,4 @@
-package com.example.mate
+package com.minatoapps.mate
 
 import android.Manifest
 import android.app.usage.UsageEvents
