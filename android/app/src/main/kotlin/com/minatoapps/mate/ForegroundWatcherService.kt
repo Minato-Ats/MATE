@@ -179,14 +179,35 @@ class ForegroundWatcherService : Service() {
 
     private fun handleForegroundChange(pkg: String) {
         val previous = MonitorState.lastForegroundPackage
-        if (pkg == previous) return
+        if (pkg == previous) {
+            // Usually a genuine no-op — but some apps (confirmed via real third-party
+            // app testing, e.g. Gmail) launch a *second* internal Activity (a first-run/
+            // tutorial screen) immediately after their main screen, which UsageStatsManager
+            // reports as another MOVE_TO_FOREGROUND for the very same package. That second
+            // launch can win the race against InterventionActivity and steal focus back
+            // before the user ever saw it. If we still have a pending, unresolved
+            // intervention for exactly this package, re-assert it (InterventionActivity is
+            // singleTask, so this just brings the existing screen back to front — safe to
+            // call repeatedly) instead of silently doing nothing.
+            if (MonitorState.activeInterventionPackage == pkg) {
+                launchIntervention(pkg)
+            }
+            return
+        }
 
         // The user left a previously-bypassed app: re-arm it for next time.
         if (previous != null && MonitorState.bypassedPackages.contains(previous)) {
             MonitorState.bypassedPackages.remove(previous)
         }
-        // The user navigated away without deciding (e.g. pressed Home): clear the stale lock.
-        if (MonitorState.activeInterventionPackage != null && pkg != MonitorState.activeInterventionPackage) {
+        // The user navigated away without deciding (e.g. pressed Home): clear the stale
+        // lock — but MATE's own package becoming foreground is *not* that; it's usually
+        // just InterventionActivity itself (which this same lock refers to) genuinely
+        // taking the foreground a poll cycle after launchIntervention() was called, and
+        // wrongly clearing the lock right after setting it reopened the same race as above.
+        if (MonitorState.activeInterventionPackage != null &&
+            pkg != MonitorState.activeInterventionPackage &&
+            pkg != packageName
+        ) {
             MonitorState.activeInterventionPackage = null
         }
         MonitorState.lastForegroundPackage = pkg
