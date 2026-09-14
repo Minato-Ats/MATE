@@ -153,9 +153,12 @@ class MainActivity : FlutterActivity() {
 
     private fun getInstalledApps(): List<Map<String, Any?>> {
         val pm = packageManager
-        // ACTION_MAIN/CATEGORY_LAUNCHER is one of the intent signatures Android
-        // exempts from package-visibility filtering, so this works on Android 11+
-        // without the broad QUERY_ALL_PACKAGES permission.
+        // NOT automatically exempt from Android 11+ package-visibility
+        // filtering — this only sees ordinary third-party apps because
+        // AndroidManifest.xml declares this exact <queries><intent> signature.
+        // Without that declaration this silently returns only the handful of
+        // apps MATE has some other automatic visibility into (installer/
+        // system apps), never normal apps like a browser or a video app.
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val resolved = pm.queryIntentActivities(launcherIntent, 0)
 
