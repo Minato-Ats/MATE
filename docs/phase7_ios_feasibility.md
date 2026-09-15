@@ -42,7 +42,7 @@ Android版のUsageStatsManager方式（能動ポーリングで検知→後追�
 | 本気モード | `SeriousModeFlow` | 同上、MATE本体アプリ内 | **同等に再現可能** |
 | 全誘惑アプリ共通15秒累積 | `SeriousModeEscalation`（純粋Dart、`PreferencesService`に永続化） | ロジックはプラットフォーム非依存。App Group経由で共有ストレージにすれば同一に動く | **同等に再現可能** |
 | 1時間で累積リセット | 同上、`DateTime`ベースの純粋ロジック | 同上 | **同等に再現可能** |
-| 一時休止 | `pausedUntil`、ネイティブwatcherが判定 | 一時休止中は`shield.applications = nil`にし、休止終了は`DeviceActivityMonitorExtension`のスケジュールイベントで再shield | **UXを変更すれば可能**（再shieldの信頼性に既知の課題あり。セクション3・9参照） |
+| 一時休止 | `pausedUntil`、ネイティブwatcherが判定 | 一時休止中は`shield.applications = nil`にし、休止終了は`DeviceActivityMonitorExtension`のスケジュールイベントで再shield | **UXを変更すれば可能**（再shieldの信頼性に既知の課題あり。セクション3-7・10参照） |
 | 見守る時間／曜日 | `ScheduleRule`をネイティブが都度判定 | `DeviceActivitySchedule`で表現。曜日別の扱いはPhase 7Bでの詳細検証が必要（要調査事項として残す） | **同等に再現可能**（詳細未検証） |
 | ルール固定モード | `StrictModeGuard`（アプリ内Dartロジックのみ） | ロジックはそのまま移植可能。ただし**iOSでは`.individual`認可をユーザーがiOS設定から常に取り消せる**（Family Controlsのプラットフォーム上の設計）ため、MATEのアプリ内制御では防げない迂回経路が原理的に残る | **同等に再現可能（アプリ内ロジックとしては）／根本的な迂回はプラットフォーム制約で防げない** |
 | 統計 | `InterventionEvent`ログ→`StatsRepository`で集計 | ロジックは完全共通化可能。イベント発生点だけAndroidの検知タイミングからiOSの各ポイント（Shield表示時=Extension側でApp Group書き込み、本体到達時=通知タップ後）に置き換え | **同等に再現可能** |
@@ -114,21 +114,21 @@ DeviceActivityMonitorExtensionでN分後に自動re-shield（★信頼性に既�
 
 実装上は `if #available(iOS 26.5, *) { completionHandler(.openParentalControlsApp) } else { /* ローカル通知フォールバック */ completionHandler(.close) }` のような分岐が必要になる。MATEの最低対応iOSバージョンをどこに置くか（26.5をターゲットにするか、それ未満も広くサポートしてフォールバックを常設するか）は、iOS 26.5のリリース時期とユーザー普及率を見てPhase 7Bで判断が必要（本レポート作成時点でリリースからの経過期間が短く、実際の普及率データは持ち合わせていない）。
 
-### 3-4. 未確認事項：対象ApplicationTokenをMATE本体へどう引き継ぐか
+### 3-4. 未確認事項：取得したApplicationTokenをApp Group経由でMATE本体へどう安全に共有・復元するか
 
-**現時点で最も重要な未確認事項。** `openParentalControlsApp`のApple公式シンボルページには、追加のDiscussion/サンプルコードが一切なく、「システムがMATE本体を起動した後、どのアプリがトリガーだったかをアプリ側がどう知るか」を説明する記述が見当たらなかった（WWDC 26セッション動画・リリースノートの精読までは今回実施していない）。
+**【2026-09-15 再追記で表現を修正】** 当初「対象ApplicationTokenをどう取得するか不明」としていたのは不正確だった。`ShieldActionDelegate.handle(action: ShieldAction, for application: ApplicationToken, completionHandler: ...)`のシグネチャが示す通り、**ShieldActionExtension自体はトリガーとなったApplicationTokenを引数として既に受け取れる**ことは公式ドキュメントで確認済み（3-1参照）。ここは未確認事項ではない。
 
-考えられる可能性：
-- (a) システムが起動時に何らかの形（launch options、`NSUserActivity`、Scene connection optionsなど）で自動的にtoken情報を渡す
-- (b) 渡されない前提で、Extension側が`.openParentalControlsApp`を返す前に自前でApp Group共有ストレージへtokenを書き込んでおき、MATE本体がそれを読む
+未確認なのは一段階先の話：**Extensionが受け取ったこのApplicationTokenを、App Group等を介してMATE本体プロセスへどう安全に共有・復元するか**という具体的な実装方法。`openParentalControlsApp`のApple公式シンボルページには追加のDiscussion/サンプルコードが一切なく、システムがMATE本体を起動した際に何らかのlaunch context経由でtokenを自動的に渡すのか、それとも完全にアプリ側の実装（Extension側でApp Group共有`UserDefaults`/共有コンテナへtokenをエンコードして書き込み、MATE本体起動後にそれを読んでデコードする）に委ねられているのかが、公式ドキュメント上明言されていない（WWDC 26セッション動画・リリースノートの精読までは今回実施していない）。
 
-設計としては(b)を前提に進めるのが安全（Appleの一般的なプライバシー設計パターン、および初版から一貫してApp Group共有ストレージを前提にしている設計と矛盾しない）。ただし(a)の自動連携が実際にあるなら実装がよりシンプルになるため、**Phase 7Bで実機（iOS 26.5+）を使って必ず検証すべき最優先事項**として明記する。
+`ApplicationToken`自体が`Codable`であること（Apple公式ドキュメントで確認済み）から、App Group共有ストレージへJSONエンコードして書き込み、MATE本体側でデコードして復元するという設計自体は技術的に成立する見込みが高いが、実際に動作するか・タイミング競合がないか（例: システムがMATE本体を起動するタイミングとExtensionの書き込み完了のタイミングの前後関係）は実機での確認が必要。**Phase 7Bで実機（iOS 26.5+）を使って最優先で検証すべき事項**として位置づける。
 
-### 3-5. 未確認事項：`.individual`（自己管理）authorizationでも使えるか
+### 3-5. 未確認事項：`.individual` authorization下で`openParentalControlsApp`が期待通り動作するか
 
-**もう一つの重要な未確認事項。** case名が「open your **parental** controls app」であり、WWDC 2026の文脈が主に真の保護者/子供シナリオ（Child Account刷新）にフォーカスしていたことから、このAPIが`.child`権限を前提に設計されている可能性を否定できない。MATEは`.individual`（自己管理、非-保護者用途）で動くアプリであり、この組み合わせで`.openParentalControlsApp`が同様に機能するかはApple公式ドキュメント上どこにも明言されていなかった（肯定も否定もされていない）。
+**【2026-09-15 再追記で表現を修正】** `FamilyControls`の`.individual`（Member.individual）authorization自体はApple公式に対応しており、自己管理（保護者/子供関係を前提としない）用途そのものは既に成立することが確認済み（初版セクション6の調査結果、WWDC22で導入）。ここは未確認事項ではない。
 
-これが確認できない場合、`.individual`認可のMATEでは`openParentalControlsApp`が使えず、iOS 26.5以降でも3-3のフォールバック（通知中継）が事実上の標準UXになる可能性がある。**Phase 7Bの実機検証で最初に確認すべき項目**として扱う。
+未確認なのは、**`openParentalControlsApp`というcase自体が、`.individual`認可で適用されたShieldに対しても期待通りMATE本体を開くかどうか**という一点。case名が「open your **parental** controls app」であり、WWDC 2026の文脈が主に真の保護者/子供シナリオ（Child Account刷新）にフォーカスしていたことから、この特定のcaseの実装が`.child`権限のシナリオを主眼に設計・検証されている可能性を否定できない。`.individual`のShieldに対してこのcaseを返した場合の実際の挙動はApple公式ドキュメント上どこにも明言されていない（肯定も否定もされていない）。
+
+これが期待通り動作しない場合、`.individual`認可のMATEでは`openParentalControlsApp`が使えず、iOS 26.5以降でも3-3のフォールバック（通知中継）が事実上の標準UXになる可能性がある。**Phase 7Bの実機検証で最初に確認すべき項目**として扱う（後述セクション10のFeasibility Spike参照）。
 
 ### 3-6. 「Shield→MATEを開けるか」と「MATE→元の対象アプリへ自動復帰できるか」は別問題
 
@@ -143,11 +143,18 @@ DeviceActivityMonitorExtensionでN分後に自動re-shield（★信頼性に既�
 
 ### 3-8. 未確認事項まとめ
 
-- ApplicationTokenの引き継ぎ方法（自動 or App Group経由の自前実装か）— 3-4
-- `.individual` authorizationでの動作可否 — 3-5
+確認済み（未確認事項ではない）：
+- ShieldActionExtensionがトリガーとなったApplicationTokenを引数として受け取れること（`handle(action:for:completionHandler:)`のシグネチャで確認済み）
+- `.individual` authorizationによる自己管理用途そのものが成立すること（FamilyControls側の仕様として確認済み）
+
+未確認（Phase 7B実機検証が必要）：
+- Extensionが受け取ったApplicationTokenを、App Group等を介してMATE本体へどう安全に共有・復元するか（自動連携があるのか、完全に自前実装が必要なのか）— 3-4
+- `.individual`認可で適用されたShieldに対し、`openParentalControlsApp`が期待通りMATE本体を開くか — 3-5
 - Family Controls entitlementとの関係（`openParentalControlsApp`固有の追加entitlementが必要かどうかはドキュメント上見当たらなかったが、既存のFamily Controls entitlement保有Extensionであれば使える、という前提で設計を進める。要Phase 7B確認）
 - App Store配布時の利用可否（`unavailable: false`/`beta: false`であることから配布可能なAPIと判断しているが、リリース間もないAPIであり実配布事例のコミュニティ報告はまだ見当たらない）
 - iOS 26.5の実機普及率・MATEの最低対応バージョンをどこに置くべきか
+
+上記2つの最重要未確認事項（ApplicationTokenの共有・`.individual`での動作可否）を検証するための最小限の実機確認手順を、セクション10「Phase 7B開始時の計画：Feasibility Spike」としてまとめた。
 
 ---
 
@@ -256,15 +263,43 @@ Xcode/macOSがなければ検証できないため保留するもの（ご指示
 
 ---
 
-## 9. Phase 7A完了条件（まとめ）
+## 9. Phase 7B開始時の計画：Feasibility Spike（本実装ではない）
+
+Phase 7Bはフル実装からではなく、3-4・3-5で挙げた2つの最重要未確認事項だけを検証する**小さなFeasibility Spike**から開始する。ここで成否を見極めてから、本実装に進むかUXを再設計するかを判断する。
+
+### 検証する2点
+
+1. **`.individual` + `openParentalControlsApp`**：`.individual`認可で適用したShieldに対し`openParentalControlsApp`を返した場合、実際にMATE本体が開くか
+2. **ApplicationTokenのExtension→本体共有**：ShieldActionExtensionが受け取ったApplicationTokenを、App Group経由でMATE本体側が正しく復元できるか
+
+### Spikeの手順（最小構成、フル実装は含まない）
+
+1. `.individual` authorizationをリクエスト
+2. `FamilyActivityPicker`でアプリ1本だけを選択
+3. 選択したアプリに`shield.applications`を適用
+4. 対象アプリを開いてShieldを表示させ、Shield上のボタンタップで`ShieldActionExtension`の`handle(action:for:completionHandler:)`が呼ばれ、`ApplicationToken`を受け取ることを確認
+5. その`ApplicationToken`をApp Group共有ストレージへ書き込んだ上で、completionHandlerに`.openParentalControlsApp`を返す
+6. MATE本体が実際に開くかを実機（iOS 26.5+）で確認
+7. MATE本体側でApp Group共有ストレージから該当`ApplicationToken`を正しく読み出し・復元できるかを確認
+
+### 分岐方針
+
+- **両方成功**（MATE本体が開く／ApplicationTokenが正しく共有・復元できる）→ Phase 7B本実装（Shield Configuration/Action/Device Activity Monitor各Extensionのフル実装、entitlement申請の本申請、Bundle ID設定等）へ進む
+- **いずれかが失敗**（`.individual`では`openParentalControlsApp`が機能しない、またはApplicationTokenの共有・復元に問題がある）→ 3-3で整理した通知中継フォールバックを最新iOSでも標準UXとして採用する方向で、UXを再設計する
+
+Spike自体はShield Configuration/Action Extensionの最小限のtarget作成とApp Group設定を伴うため、Xcode/macOSが必要（セクション8参照）。今回のドキュメント整理の範囲には含まず、Swift実装はまだ開始していない。
+
+---
+
+## 10. Phase 7A完了条件（まとめ）
 
 - **iOSで再現可能なMATE機能**：本気モード累積エスカレーション、1時間リセット、統計、SAVE時間、streak、ルール固定モードのアプリ内ロジック、通常待機、本気モードの自由記述・YES/NO・煽り文 — いずれもMATE本体アプリ内でAndroid版とほぼ同一のDartロジック・UIで再現可能
 - **完全再現できない機能／制約**：
   - MATE本体→対象アプリへの自動復帰（公式APIなし、URL Schemeのベストエフォートかユーザーの手動操作。`openParentalControlsApp`とは無関係の別問題、セクション3-6）
   - 対象アプリ選択UIの自由なカスタマイズ（`FamilyActivityPicker`という不透明トークンベースのシステムUIに依存）
   - ルール固定モードによる完全な迂回防止（`.individual`認可はユーザーがiOS設定からいつでも取り消せる、プラットフォーム構造上の制約）
-  - Shield→MATE本体への直接遷移は、iOS 26.5+かつ`.individual`authorizationでの動作が実機で確認できるまでは未確定（セクション3-4・3-5）。確認できなければiOS 26.5未満と同様、通知中継が必要
-- **Android版から変更が必要なUX**：Shield画面（システムテンプレート、自由なデザイン不可）／iOS 26.5未満またはtoken引き継ぎ・`.individual`対応が実機で確認できない場合はShieldから本体への遷移が通知タップ経由になる／対象アプリへの復帰導線の再設計／一時休止・再shieldの自動化に信頼性面のセーフティネットが必要
+  - Shield→MATE本体への直接遷移は、`.individual`認可下での`openParentalControlsApp`の動作とApplicationTokenのApp Group経由共有が実機で確認できるまでは未確定（セクション3-4・3-5、検証手順はセクション9のFeasibility Spike）。確認できなければiOS 26.5未満と同様、通知中継が必要
+- **Android版から変更が必要なUX**：Shield画面（システムテンプレート、自由なデザイン不可）／iOS 26.5未満、またはFeasibility Spikeが失敗した場合はShieldから本体への遷移が通知タップ経由になる／対象アプリへの復帰導線の再設計／一時休止・再shieldの自動化に信頼性面のセーフティネットが必要
 - **推奨iOSアーキテクチャ**：セクション1・3参照。Shield ConfigurationとShield Actionの2 Extensionは薄く保ち（システムテンプレート表示＋通知発火のみ）、実質的な機能はすべてMATE本体アプリ側のFlutterで実装
 - **必要なApp／Extension構成**：メインアプリ＋Shield Configuration Extension＋Shield Action Extension＋Device Activity Monitor Extensionの計4 target
 - **Bundle ID一覧**：セクション5参照
@@ -273,11 +308,11 @@ Xcode/macOSがなければ検証できないため保留するもの（ご指示
 - **Windowsで今できる作業**：セクション7の候補（未着手、指示待ち）
 - **macOSが必要になる境界**：Extension target追加・entitlements・Signing設定・実機検証（セクション8）
 - **Apple側でユーザー本人が行う必要がある手続き**：Apple Developer Program登録、Bundle ID登録、App Groups/Family Controls capability有効化、Family Controls Distribution entitlement申請（メイン＋Extension個別）（セクション4）
-- **Phase 7Bの実装手順**：セクション8の推奨順序
-- **iOS対応で重大なブロッカーがあるか**：**開発を止めるレベルの致命的ブロッカーはなし**。「Shield→本体」は`openParentalControlsApp`（iOS 26.5+）により大きく改善する見込みだが、token引き継ぎ方法と`.individual`対応可否という2つの重要未確認事項が残るため、Phase 7Bの実機検証を最優先で行うべき。「本体→対象アプリ復帰」は今回の追記調査でも未解決のまま、Android版と同一のシームレスさを諦める必要がある。また`DeviceActivityMonitorExtension`の発火信頼性に現在進行形の既知不具合があり、再shield設計にセーフティネットが要る
+- **Phase 7Bの実装手順**：セクション8の推奨順序に沿って環境を整えた後、まずセクション9のFeasibility Spikeで2つの最重要未確認事項を検証し、その結果を見てから本実装に進むかUXを再設計するかを判断する
+- **iOS対応で重大なブロッカーがあるか**：**開発を止めるレベルの致命的ブロッカーはなし**。「Shield→本体」は`openParentalControlsApp`（iOS 26.5+）により大きく改善する見込みで、ShieldActionExtensionがApplicationTokenを受け取れること・`.individual`による自己管理用途自体が成立することは確認済み。残る未確認は「そのApplicationTokenをApp Group経由でMATE本体へ安全に共有・復元できるか」と「`.individual`下でも`openParentalControlsApp`が期待通り動作するか」の2点で、これをセクション9のFeasibility Spikeで最優先検証する。「本体→対象アプリ復帰」は今回の追記調査でも未解決のまま、Android版と同一のシームレスさを諦める必要がある。また`DeviceActivityMonitorExtension`の発火信頼性に現在進行形の既知不具合があり、再shield設計にセーフティネットが要る
 
 ---
 
-以上でPhase 7Aの調査・設計を完了します。ここで一度停止します。Phase 7Bのネイティブ実装（Xcode/Swift側の実装、Extension追加、entitlement申請の実行など）は、この設計内容をご確認いただいてから着手します。
+以上でPhase 7Aの調査・設計を完了します。ここで一度停止します。Phase 7B（セクション9のFeasibility Spikeを含む）のネイティブ実装（Xcode/Swift側の実装、Extension追加、entitlement申請の実行など）は、この設計内容をご確認いただいてから着手します。
 
 Android v1のコードは変更していません。Play Store公開作業も行っていません。
